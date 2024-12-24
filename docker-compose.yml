@@ -1,0 +1,14 @@
+version: '3.4'
+
+services:
+  dishttpgateway:
+    image: dishttpgateway
+    build:
+      context: .
+      dockerfile: ./Dockerfile
+    environment:
+      - DIS_LISTEN_PORT
+      - HTTP_API_ENDPOINT
+      - HTTP_AUTH_TOKEN
+    ports:
+      - "3000:3000/udp"
