@@ -1,99 +1,56 @@
-import time
-import sys
-import array
 import os
-
-from opendis.dis7 import *
-from opendis.RangeCoordinates import *
-from opendis.PduFactory import createPdu
-
-from twisted.internet import reactor
-from twisted.internet.protocol import DatagramProtocol
-from twisted.web.client import Agent, BrowserLikePolicyForHTTPS
+from twisted.internet import reactor, task
+from twisted.internet.defer import inlineCallbacks
+from twisted.web.client import Agent, readBody
 from twisted.web.http_headers import Headers
+import json
 
-from twisted.internet.defer import succeed
+from config import load_config_from_env
+from dis_receiver import DISReceiver
+from dis_emitter import DISEmitter
+from pdu_extension import extend_pdu_factory
 
-DIS_LISTEN_PORT=int(os.getenv("DIS_LISTEN_PORT", 3000))
-
-HTTP_API_ENDPOINT=os.getenv("HTTP_API_ENDPOINT", "http://web/api/v1/messagedis")
-HTTP_AUTH_TOKEN=os.getenv("HTTP_AUTH_TOKEN", "changeme")
-
-gps = GPS()
-
-class DISReceiver(DatagramProtocol):
-    def __init__(self, http_api_client):
-        self.http_api_client = http_api_client
-
-    def datagramReceived(self, datagram, address):
-        #print(f"received {datagram!r} from {address}")
-        pdu = createPdu(datagram);
-        pduTypeName = pdu.__class__.__name__
-
-        if pdu.pduType == 1: # PduTypeDecoders.EntityStatePdu:
-            loc = (pdu.entityLocation.x, 
-                pdu.entityLocation.y, 
-                pdu.entityLocation.z,
-                pdu.entityOrientation.psi,
-                pdu.entityOrientation.theta,
-                pdu.entityOrientation.phi
-                )
-
-            body = gps.ecef2llarpy(*loc)
-
-            print("Received {}\n".format(pduTypeName)
-                + " Id        : {}\n".format(pdu.entityID.entityID)
-                + " Latitude  : {:.2f} degrees\n".format(rad2deg(body[0]))
-                + " Longitude : {:.2f} degrees\n".format(rad2deg(body[1]))
-                + " Altitude  : {:.0f} meters\n".format(body[2])
-                + " Yaw       : {:.2f} degrees\n".format(rad2deg(body[3]))
-                + " Pitch     : {:.2f} degrees\n".format(rad2deg(body[4]))
-                + " Roll      : {:.2f} degrees\n".format(rad2deg(body[5]))
-                )
-            #self.http_api_client.post_content("Message_received")
-
-        else:
-            print("Received {}, {} bytes".format(pduTypeName, len(datagram)), flush=True)
+# Poll API and emit PDUs
+@inlineCallbacks
+def poll_api(endpoint, token, interval, emitter):
+    agent = Agent(reactor)
+    while True:
+        headers = Headers({
+            "Authorization": [f"Bearer {token}"]
+        })
+        response = yield agent.request(b"GET", endpoint.encode("utf-8"), headers)
+        body = yield readBody(response)
+        data = json.loads(body)
+        print(f"Received API data: {data}")
+        if "position" in data and "route" in data and "speed" in data:
+            emitter.send_pdu(data["position"], data["route"], data["speed"])
+        yield task.deferLater(reactor, interval, lambda: None)
 
 
-class BytesProducer(object):
-    def __init__(self, body):
-        self.body = body
-        self.length = len(body)
+def main():
+    # Extend the PDU factory
+    extend_pdu_factory()
 
-    def startProducing(self, consumer):
-        consumer.write(self.body)
-        return succeed(None)
+    # Load configuration from environment variables
+    config = load_config_from_env()
 
-    def pauseProducing(self):
-        pass
+    # Initialize DIS receiver
+    receiver = DISReceiver(config["http_receiver"], config["http_token_receiver"])
+    reactor.listenMulticast(config["receiver"]["port"], receiver, listenMultiple=True)
 
-    def stopProducing(self):
-        pass
+    # Initialize DIS emitter
+    emitter = DISEmitter(config["emitter"])
+    task.deferLater(
+        reactor,
+        0,
+        poll_api,
+        config["http_poller"],
+        config["http_token_poller"],
+        config["poll_interval"],
+        emitter,
+    )
 
-class HttpApiClient(Agent):
-    def __init__(self, 
-                reactor, 
-                contextFactory=BrowserLikePolicyForHTTPS(), 
-                connectTimeout=None, 
-                bindAddress=None, 
-                pool=None,
-                uri="",
-                headers=[]):
-        Agent.__init__(self, reactor, contextFactory, connectTimeout, bindAddress, pool)
-        self.uri = uri
-
-    def post_content(self, content):
-        self.request("POST", self.uri, headers=self.headers, bodyProducer=BytesProducer(content))
+    reactor.run()
 
 if __name__ == "__main__":
-    print("Starting DIS/HTTP gateway.")
-    print("UDP Listening port: {}\n".format(DIS_LISTEN_PORT))
-    print("HTTP endpoint: {}".format(HTTP_API_ENDPOINT))
-    print("HTTP auth token: {}\n".format(HTTP_AUTH_TOKEN))
-
-    http_api_client = HttpApiClient(reactor, headers=[{'Authorization': ['Bearer: ' + HTTP_AUTH_TOKEN]}])
-
-    reactor.listenUDP(DIS_LISTEN_PORT, DISReceiver(http_api_client))
-    
-    reactor.run()
+    main()
