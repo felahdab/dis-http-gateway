@@ -22,9 +22,26 @@ def poll_api(endpoint, token, interval, emitter):
         body = yield readBody(response)
         data = json.loads(body)
         print(f"Received API data: {data}")
+
         if "position" in data and "route" in data and "speed" in data:
-            emitter.send_pdu(data["position"], data["route"], data["speed"])
-        yield task.deferLater(reactor, interval, lambda: None)
+            entity_id = 1001
+            entity_type = {"kind": 2, "domain": 6, "country": 71, "category": 1, "subcategory": 1}
+            # EntityID: SISO-REF010 page 457/768
+            # EntityID = 2.6.71.1.1.1 : MM 38 Exocet
+            #            2.6.71.1.1.4 : MM 40 Exocet
+            # kind=2
+            # domain=6: 
+            # country=71: France (SISO-REF010 page 96/768)
+            # category=1: Guided (SISO-REF010 page 51/768)
+            # subcategory=1
+
+            # Ici, il faut calculer la position et la velocite à partir des latitude, longitude, route et vitesse
+            # obtenues depuis l'API.
+            position = (10.0, 20.0, 0.0)  # Coordonnées de l'entité
+            velocity = (1.0, 0.0, 0.0)  # Vitesse de l'entité
+            
+
+            emitter.create_entity_sequence(entity_id, entity_type, position, velocity)
 
 
 def main():
