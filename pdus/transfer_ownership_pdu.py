@@ -1,4 +1,4 @@
-from pydis.dis7 import Pdu
+from opendis.dis7 import Pdu
 
 # Ce type de PDU n'est pas implémenté dans OpenDIS.
 # On réalise donc une implémentation complémentaire, sur la base de l'IEEE 1278.1-200X Draft 16 rev 18, annexe H pour 
