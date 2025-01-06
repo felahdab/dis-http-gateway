@@ -1,14 +1,24 @@
 from twisted.internet.protocol import DatagramProtocol
-from twisted.internet import reactor
+from twisted.internet import reactor, defer
 
-from pydis.dis7 import (
+from opendis.dis7 import (
     CreateEntityPdu,
     AcknowledgePdu,
     DataPdu,
     SetDataPdu,
+    VariableDatum,
+    DatumSpecification
 )
+from opendis import PduFactory
+from opendis.RangeCoordinates import *
+from opendis.DataOutputStream import DataOutputStream
+
+from datums.entity_datums import *
+
+from io import BytesIO
 import json
-from socket import socket, AF_INET, SOCK_DGRAM
+import struct
+from socket import socket, AF_INET, SOCK_DGRAM, SOL_SOCKET, SO_BROADCAST, SO_REUSEADDR
 import os
 
 class DISEmitter(DatagramProtocol):
@@ -21,21 +31,33 @@ class DISEmitter(DatagramProtocol):
         self.config = config
         self.pending_requests = {}  # Store Deferreds for pending requests
         self.socket = socket(AF_INET, SOCK_DGRAM)  # Create a UDP socket
+        self.requestID = 1029
 
         # Set the socket options (e.g., broadcast or multicast)
-        if self.config["mode"] == "broadcast":
+        if self.config["emitter"]["mode"] == "broadcast":
+            print("Broadcast mode selected.")
             self.socket.setsockopt(SOL_SOCKET, SO_BROADCAST, 1)
-        elif self.config["mode"] == "multicast":
+        elif self.config["emitter"]["mode"] == "multicast":
+            print("Multicast mode selected.")
             self.socket.setsockopt(SOL_SOCKET, SO_REUSEADDR, 1)
             self.socket.bind((self.config["ip"], self.config["port"]))
+
+    def get_requestID(self):
+        ret = self.requestID
+        self.requestID = self.requestID + 1
+        return ret
 
     def send_pdu(self, pdu):
         """
         Encode and send a PDU over the network.
         """
-        encoded_pdu = pdu.encode()
-        destination = (self.config["ip"], self.config["port"])
-        self.transport.write(encoded_pdu, destination)
+        memoryStream = BytesIO()
+        outputStream = DataOutputStream(memoryStream)
+        pdu.serialize(outputStream)
+        data = memoryStream.getvalue()
+        destination = (self.config["emitter"]["ip"], self.config["emitter"]["port"])
+
+        self.socket.sendto(data, destination)
         print(f"Sent PDU: {pdu}")
 
     def send_pdu_with_response(self, pdu, timeout=5):
@@ -61,7 +83,7 @@ class DISEmitter(DatagramProtocol):
         Handle incoming PDUs.
         """
         try:
-            pdu = PduFactory().create_pdu(data)
+            pdu = PduFactory.create_pdu(data)
             print(f"Received PDU from {addr}: {pdu}")
 
             # Dispatch based on PDU type
@@ -88,7 +110,8 @@ class DISEmitter(DatagramProtocol):
         """
         if request_id in self.pending_requests:
             deferred = self.pending_requests.pop(request_id)
-            deferred.errback(Exception(f"Request ID {request_id} timed out."))
+            #deferred.errback(Exception(f"Request ID {request_id} timed out."))
+            print(f"Request ID {request_id} timed out.")
 
     def handle_data_pdu(self, pdu):
         """
@@ -115,42 +138,91 @@ class DISEmitter(DatagramProtocol):
         :param route: The route data (if any)
         :param speed: The speed data
         """
+        print("Creating entity")
         # Step 1: Send CreateEntityPdu
         create_pdu = CreateEntityPdu()
-        create_pdu.requestID = entity_id
-        create_pdu.originatingEntityID.siteID = 1
-        create_pdu.originatingEntityID.applicationID = 1
-        create_pdu.originatingEntityID.entityID = entity_id
+
+        # Les lignes ci-dessous contournent l'exception struct.
+        create_pdu.pduType=11
+        create_pdu.pduStatus = 0
+
+        create_pdu.originatingEntityID.siteID = self.config["own_dis_site"]
+        create_pdu.originatingEntityID.applicationID = self.config["own_dis_application"]
+        create_pdu.originatingEntityID.entityID = 0
+
+        create_pdu.receivingEntityID.siteID = self.config["remote_dis_site"]
+        create_pdu.receivingEntityID.applicationID = self.config["remote_dis_application"]
+        create_pdu.receivingEntityID.entityID = entity_id
+
+        create_pdu.requestID = self.get_requestID()
+
         create_pdu.entityType = entity_type
 
         d = self.send_pdu_with_response(create_pdu)
 
         # Step 2: On AcknowledgePdu, send SetDataPdu
-        d.addCallback(lambda _: self.send_set_data_pdu(entity_id, position, velocity))
+        d.addCallback(lambda _: self.send_set_data_pdu(entity_id, entity_type, position, velocity))
         d.addErrback(lambda failure: print(f"CreateEntityPdu failed: {failure}"))
 
-    def send_set_data_pdu(self, entity_id, position, velocity):
+        # A retirer si on veut attendre un aknowledge avant d'envoyer le SetData.
+        self.send_set_data_pdu(entity_id, entity_type, position, velocity)
+
+    def send_set_data_pdu(self, entity_id, entity_type, position, velocity):
         """
         Send a SetDataPdu to set the position, route, and velocity of the entity.
         """
 
         set_data_pdu = SetDataPdu()
-        set_data_pdu.requestID = entity_id
-        set_data_pdu.originatingEntityID.siteID = 1
-        set_data_pdu.originatingEntityID.applicationID = 1
-        set_data_pdu.originatingEntityID.entityID = entity_id
+        # Les lignes ci-dessous contournent l'exception struct.
+        set_data_pdu.pduType=19
+        set_data_pdu.pduStatus = 0
 
-        # A modifier: la génération d'un SetDataPdu ne se passe pas comme ça.
-        # Il faut remplacer le code ci-dessous par un truc du genre:
-        # set_data_pdu.self._datums = DatumSpecification([], variableDatumRecords)
-        # et initialiser variableDatumRecord avec les informations de position et la velocité.
-        # Voir SISO-REF010 page 725 pour les ID des Datums correspondants.
+        set_data_pdu.originatingEntityID.siteID = self.config["own_dis_site"]
+        set_data_pdu.originatingEntityID.applicationID = self.config["own_dis_application"]
+        set_data_pdu.originatingEntityID.entityID = 0
 
-        # Set the data fields for position, route, and velocity
-        set_data_pdu.variableDatumID = 1  # Example ID for position and velocity
-        set_data_pdu.variableDatumValue = json.dumps(
-            {"position": position, "velocity": velocity}
-        ).encode()
+        set_data_pdu.receivingEntityID.siteID = self.config["remote_dis_site"]
+        set_data_pdu.receivingEntityID.applicationID = self.config["remote_dis_application"]
+        set_data_pdu.receivingEntityID.entityID = entity_id
+
+        set_data_pdu.requestID = self.get_requestID()
+
+        entityDISLocation = GPS().llarpy2ecef(deg2rad(36.6),   # longitude (radians)
+                                       deg2rad(-121.9), # latitude (radians)
+                                       0,               # altitude (meters)
+                                       0,               # roll (radians)
+                                       0,               # pitch (radians)
+                                       0                # yaw (radians)
+                                       )
+        entityLocationX= EntityLocationDatum("X", entityDISLocation[0])
+        entityLocationY= EntityLocationDatum("Y", entityDISLocation[1])
+        entityLocationZ= EntityLocationDatum("Z", entityDISLocation[2])
+
+        entityVelocityX= EntityLinearVelocityDatum("X", 0)
+        entityVelocityY= EntityLinearVelocityDatum("Y", 0)
+        entityVelocityZ= EntityLinearVelocityDatum("Z", 0)
+
+        # EntityOrientationDatum
+
+        # entity_type = {"kind": 2, "domain": 6, "country": 71, "category": 1, "subcategory": 1}
+        entityKind = EntityKindDatum(entity_type["kind"])
+        entityDomain = EntityDomainDatum(entity_type["domain"])
+        entityCountry = EntityCountryDatum(entity_type["country"])
+        entityCategory = EntityCategoryDatum(entity_type["category"])
+        entitySubCategory = EntitySubCategoryDatum(entity_type["subcategory"])
+
+        set_data_pdu._datums = DatumSpecification([], [entityLocationX, 
+                                                       entityLocationY, 
+                                                       entityLocationZ,
+                                                       entityVelocityX,
+                                                       entityVelocityY,
+                                                       entityVelocityZ,
+                                                       entityKind,
+                                                       entityDomain,
+                                                       entityCountry,
+                                                       entityCategory,
+                                                       entitySubCategory])
+        
 
         self.send_pdu(set_data_pdu)
         print(f"SetDataPdu sent for entity {entity_id}.")
