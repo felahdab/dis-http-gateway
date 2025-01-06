@@ -18,13 +18,23 @@ def poll_api(endpoint, token, interval, emitter):
         headers = Headers({
             "Authorization": [f"Bearer {token}"]
         })
-        response = yield agent.request(b"GET", endpoint.encode("utf-8"), headers)
-        body = yield readBody(response)
-        data = json.loads(body)
+
+        if (False): # Code réel à réactiver après tests.
+            response = yield agent.request(b"GET", endpoint.encode("utf-8"), headers)
+            body = yield readBody(response)
+            data = json.loads(body)
+        else: # code fictif simulant l'obtention d'une objet à générer depuis l'API REST.
+            data = {
+                "latitude": "43.0",
+                "longitude": "5.0",
+                "route" : "230",
+                "speed": "12.3"
+            }
+
         print(f"Received API data: {data}")
 
-        if "position" in data and "route" in data and "speed" in data:
-            entity_id = 1001
+        if "latitude" in data and "longitude" in data and "route" in data and "speed" in data:
+            entity_id = 12345
             entity_type = {"kind": 2, "domain": 6, "country": 71, "category": 1, "subcategory": 1}
             # EntityID: SISO-REF010 page 457/768
             # EntityID = 2.6.71.1.1.1 : MM 38 Exocet
@@ -42,6 +52,7 @@ def poll_api(endpoint, token, interval, emitter):
             
 
             emitter.create_entity_sequence(entity_id, entity_type, position, velocity)
+        yield task.deferLater(reactor, interval, lambda: None)
 
 
 def main():
@@ -50,13 +61,14 @@ def main():
 
     # Load configuration from environment variables
     config = load_config_from_env()
+    print(json.dumps(config, indent=3))
 
     # Initialize DIS receiver
     receiver = DISReceiver(config["http_receiver"], config["http_token_receiver"])
     reactor.listenMulticast(config["receiver"]["port"], receiver, listenMultiple=True)
 
     # Initialize DIS emitter
-    emitter = DISEmitter(config["emitter"])
+    emitter = DISEmitter(config)
     task.deferLater(
         reactor,
         0,

@@ -3,6 +3,8 @@ from twisted.web.client import Agent
 from twisted.web.http_headers import Headers
 from twisted.internet import reactor, task
 from twisted.web.iweb import IBodyProducer
+from twisted.internet.defer import succeed
+import io
 
 import json
 from pdu_extension import extend_pdu_factory
