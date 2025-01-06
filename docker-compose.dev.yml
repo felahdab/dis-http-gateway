@@ -5,5 +5,4 @@ services:
     image: python:3.11-slim
     command: ["bash", "-c", "sleep infinity"]
     volumes:
-      - ./app.py:/app/app.py
-      - ./dis_sender.py:/app/dis_sender.py
+      - ./:/app
