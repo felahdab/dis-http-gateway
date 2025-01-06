@@ -1,7 +1,8 @@
 from twisted.internet.protocol import DatagramProtocol
-from twisted.web.client import Agent, MemoryBodyProducer
+from twisted.web.client import Agent
 from twisted.web.http_headers import Headers
 from twisted.internet import reactor, task
+from twisted.web.iweb import IBodyProducer
 
 import json
 from pdu_extension import extend_pdu_factory
@@ -10,13 +11,34 @@ from pdus.transfer_ownership_pdu import TransferOwnershipPdu
 # Extend the PduFactory to include custom PDUs
 extend_pdu_factory()
 
-from pydis.dis7 import PduFactory, EntityStatePdu
+from opendis.dis7 import EntityStatePdu
+from opendis import PduFactory
+
+class MemoryBodyProducer(IBodyProducer):
+    """
+    A BodyProducer that wraps a string into a BytesIO stream.
+    """
+
+    def __init__(self, content):
+        self.content = content.encode("utf-8")  # Convert string to bytes
+        self.length = len(self.content)
+        self._buffer = io.BytesIO(self.content)
+
+    def startProducing(self, consumer):
+        consumer.write(self._buffer.read())
+        return succeed(None)
+
+    def pauseProducing(self):
+        pass
+
+    def stopProducing(self):
+        self._buffer.close()
 
 class DISReceiver(DatagramProtocol):
     def __init__(self, http_endpoint, http_token):
         self.http_endpoint = http_endpoint
         self.http_token = http_token
-        self.pdu_factory = PduFactory()
+        self.pdu_factory = PduFactory
 
     def datagramReceived(self, data, addr):
         try:
