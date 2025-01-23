@@ -1,24 +1,23 @@
+from zope.interface import implementer
 from twisted.web.iweb import IBodyProducer
 from twisted.internet.defer import succeed
-import io
 
-
-class MemoryBodyProducer(IBodyProducer):
+@implementer(IBodyProducer)
+class MemoryBodyProducer():
     """
     A BodyProducer that wraps a string into a BytesIO stream.
     """
 
-    def __init__(self, content):
-        self.content = content.encode("utf-8")  # Convert string to bytes
-        self.length = len(self.content)
-        self._buffer = io.BytesIO(self.content)
+    def __init__(self, body):
+        self.body = body # Convert string to bytes
+        self.length = len(self.body)
 
     def startProducing(self, consumer):
-        consumer.write(self._buffer.read())
+        consumer.write(self.body)
         return succeed(None)
 
     def pauseProducing(self):
         pass
 
     def stopProducing(self):
-        self._buffer.close()
+        pass
