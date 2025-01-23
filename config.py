@@ -20,6 +20,9 @@ def load_config_from_env():
     # API Configuration
     http_endpoint_receiver = os.getenv("HTTP_ENDPOINT_RECEIVER", "http://example.com/api/receive")
     http_endpoint_poller = os.getenv("HTTP_ENDPOINT_POLLER", "http://example.com/api/poll")
+    # Ignore cert: false by default. true only if set exactly to "true"
+    http_ignore_cert = os.getenv("HTTP_IGNORE_CERT", "false") == "true"
+    
     poll_interval = float(os.getenv("POLL_INTERVAL", "5"))
 
     # Tokens
@@ -38,5 +41,6 @@ def load_config_from_env():
         "http_token_receiver": http_token_receiver,
         "http_poller": http_endpoint_poller,
         "http_token_poller": http_token_poller,
+        "http_ignore_cert" : http_ignore_cert,  
         "poll_interval": poll_interval,
     }
