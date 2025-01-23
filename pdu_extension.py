@@ -4,7 +4,7 @@ from pdus.transfer_ownership_pdu import TransferOwnershipPdu
 # Save the original create_pdu method
 original_create_pdu = PduFactory.createPdu
 
-def extended_create_pdu(self, data):
+def extended_create_pdu(data):
     """
     Custom PDU Factory logic to handle unsupported PDU types.
     """
@@ -15,7 +15,7 @@ def extended_create_pdu(self, data):
         return pdu
 
     # Call the original method for all other PDUs
-    return original_create_pdu(self, data)
+    return original_create_pdu(data)
 
 # Patch PduFactory
 def extend_pdu_factory():
