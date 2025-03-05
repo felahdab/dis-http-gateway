@@ -1,8 +1,14 @@
 version: '3.4'
 
 services:
-  dishttpgatewaydev:
+  test:
     image: python:3.11-slim
     command: ["bash", "-c", "sleep infinity"]
     volumes:
       - ./:/app
+  disgateway:
+    image: python:3.11-slim
+    command: ["bash", "-c", "sleep infinity"]
+    volumes:
+      - ./:/app
+
