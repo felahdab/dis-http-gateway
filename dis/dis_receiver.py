@@ -4,9 +4,9 @@ from twisted.web.http_headers import Headers
 from twisted.internet import reactor, task
 
 import json
-from pdu_extension import extend_pdu_factory
+from dis.pdu_extension import extend_pdu_factory
 from pdus.transfer_ownership_pdu import TransferOwnershipPdu
-from memory_body_producer import MemoryBodyProducer
+from http.memory_body_producer import MemoryBodyProducer
 
 # Extend the PduFactory to include custom PDUs
 extend_pdu_factory()

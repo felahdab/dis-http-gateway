@@ -5,10 +5,10 @@ from twisted.web.client import Agent, readBody
 from twisted.web.http_headers import Headers
 import json
 
-from config import load_config_from_env
-from dis_receiver import DISReceiver
-from dis_emitter import DISEmitter
-from pdu_extension import extend_pdu_factory
+from config.config import load_config_from_env
+from dis.dis_receiver import DISReceiver
+from dis.dis_emitter import DISEmitter
+from dis.pdu_extension import extend_pdu_factory
 
 # Poll API and emit PDUs
 @inlineCallbacks
