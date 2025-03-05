@@ -1,5 +1,5 @@
 from opendis import PduFactory
-from pdus.transfer_ownership_pdu import TransferOwnershipPdu
+from .transfer_ownership_pdu import TransferOwnershipPdu
 
 # Save the original create_pdu method
 original_create_pdu = PduFactory.createPdu

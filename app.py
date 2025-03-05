@@ -6,9 +6,11 @@ from twisted.web.http_headers import Headers
 import json
 
 from config.config import load_config_from_env
-from dis.dis_receiver import DISReceiver
-from dis.dis_emitter import DISEmitter
-from dis.pdu_extension import extend_pdu_factory
+from distools.dis_receiver import DISReceiver
+from distools.dis_emitter import DISEmitter
+from distools.pdus.pdu_extension import extend_pdu_factory
+
+from httptools.http_poster import HttpPoster
 
 # Poll API and emit PDUs
 @inlineCallbacks
@@ -54,7 +56,6 @@ def poll_api(endpoint, token, interval, emitter):
             emitter.create_entity_sequence(entity_id, entity_type, position, velocity)
         yield task.deferLater(reactor, interval, lambda: None)
 
-
 def main():
     # Extend the PDU factory
     extend_pdu_factory()
@@ -63,8 +64,10 @@ def main():
     config = load_config_from_env()
     print(json.dumps(config, indent=3))
 
+    # Initialize the HTTP poster
+    http_poster = HttpPoster(config["http_receiver"], config["http_token_receiver"])
     # Initialize DIS receiver
-    receiver = DISReceiver(config["http_receiver"], config["http_token_receiver"])
+    receiver = DISReceiver(http_poster)
     reactor.listenMulticast(config["receiver"]["port"], receiver, listenMultiple=True)
 
     # Initialize DIS emitter

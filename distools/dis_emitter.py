@@ -13,7 +13,7 @@ from opendis import PduFactory
 from opendis.RangeCoordinates import *
 from opendis.DataOutputStream import DataOutputStream
 
-from datums.entity_datums import *
+from .datums.entity_datums import *
 
 from io import BytesIO
 import json
