@@ -6,9 +6,17 @@ services:
     command: ["bash", "-c", "sleep infinity"]
     volumes:
       - ./:/app
+    networks:
+      - backend
   disgateway:
     image: python:3.11-slim
     command: ["bash", "-c", "sleep infinity"]
     volumes:
       - ./:/app
+    networks:
+      - backend
 
+networks:
+  backend:
+    name: c2n_polaris-online_private
+    external: true

@@ -25,6 +25,7 @@ def poll_api(endpoint, token, interval, emitter):
             response = yield agent.request(b"GET", endpoint.encode("utf-8"), headers)
             body = yield readBody(response)
             data = json.loads(body)
+            print(body)
         else: # code fictif simulant l'obtention d'une objet à générer depuis l'API REST.
             data = {
                 "latitude": "43.0",
