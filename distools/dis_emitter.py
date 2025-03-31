@@ -134,9 +134,8 @@ class DISEmitter(DatagramProtocol):
          - 364: format du AcknowledgePdu
          - 370: format du SetDataPdu
 
-        :param position: The position data (latitude, longitude, etc.)
-        :param route: The route data (if any)
-        :param speed: The speed data
+        :param position: The position data in ECEF in m.
+        :param valocity: The velocity in ECEF in m/s
         """
         print("Creating entity")
         # Step 1: Send CreateEntityPdu
@@ -187,20 +186,13 @@ class DISEmitter(DatagramProtocol):
 
         set_data_pdu.requestID = self.get_requestID()
 
-        entityDISLocation = GPS().llarpy2ecef(deg2rad(36.6),   # longitude (radians)
-                                       deg2rad(-121.9), # latitude (radians)
-                                       0,               # altitude (meters)
-                                       0,               # roll (radians)
-                                       0,               # pitch (radians)
-                                       0                # yaw (radians)
-                                       )
-        entityLocationX= EntityLocationDatum("X", entityDISLocation[0])
-        entityLocationY= EntityLocationDatum("Y", entityDISLocation[1])
-        entityLocationZ= EntityLocationDatum("Z", entityDISLocation[2])
+        entityLocationX= EntityLocationDatum("X", position[0])
+        entityLocationY= EntityLocationDatum("Y", position[1])
+        entityLocationZ= EntityLocationDatum("Z", position[2])
 
-        entityVelocityX= EntityLinearVelocityDatum("X", 0)
-        entityVelocityY= EntityLinearVelocityDatum("Y", 0)
-        entityVelocityZ= EntityLinearVelocityDatum("Z", 0)
+        entityVelocityX= EntityLinearVelocityDatum("X", velocity[0])
+        entityVelocityY= EntityLinearVelocityDatum("Y", velocity[1])
+        entityVelocityZ= EntityLinearVelocityDatum("Z", velocity[2])
 
         # EntityOrientationDatum
 

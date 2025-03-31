@@ -9,8 +9,13 @@ from config.config import load_config_from_env
 from distools.dis_receiver import DISReceiver
 from distools.dis_emitter import DISEmitter
 from distools.pdus.pdu_extension import extend_pdu_factory
+from distools.geotools.tools import natural_velocity_to_ECEF
 
 from httptools.http_poster import HttpPoster
+
+from opendis.RangeCoordinates import GPS, deg2rad, rad2deg
+
+gps = GPS()
 
 # Poll API and emit PDUs
 @inlineCallbacks
@@ -26,19 +31,20 @@ def poll_api(endpoint, token, interval, emitter):
             body = yield readBody(response)
             data = json.loads(body)
             print(body)
-        else: # code fictif simulant l'obtention d'une objet à générer depuis l'API REST.
+        else: # code fictif simulant l'obtention d'un objet à générer depuis l'API REST.
             data = {
-                "latitude": "43.0",
-                "longitude": "5.0",
-                "route" : "230",
-                "speed": "12.3"
+                "latitude": 43.0,
+                "longitude": 5.0,
+                "route" : 230,
+                "vitesse": 12.3,
+                "entity_type" : {"kind": 2, "domain": 6, "country": 71, "category": 1, "subcategory": 1}
             }
 
         print(f"Received API data: {data}")
 
         if "latitude" in data and "longitude" in data and "route" in data and "speed" in data:
             entity_id = 12345
-            entity_type = {"kind": 2, "domain": 6, "country": 71, "category": 1, "subcategory": 1}
+            entity_type = data["entity_type"]
             # EntityID: SISO-REF010 page 457/768
             # EntityID = 2.6.71.1.1.1 : MM 38 Exocet
             #            2.6.71.1.1.4 : MM 40 Exocet
@@ -48,13 +54,31 @@ def poll_api(endpoint, token, interval, emitter):
             # category=1: Guided (SISO-REF010 page 51/768)
             # subcategory=1
 
-            # Ici, il faut calculer la position et la velocite à partir des latitude, longitude, route et vitesse
-            # obtenues depuis l'API.
-            position = (10.0, 20.0, 0.0)  # Coordonnées de l'entité
-            velocity = (1.0, 0.0, 0.0)  # Vitesse de l'entité
-            
+            # Inputs:
+            # lat   : latitude of the entity in radians
+            # lon   : longitude of the entity in radians
+            # alt   : altitude of the entity in meters
+            # roll  : roll of the entity in radians
+            # pitch : pitch of the entity in radians
+            # yaw   : yaw (heading) of the entity in radians
+            lat = data["latitude"]
+            lon = data["longitude"]
+            alt = 5
+
+            # """
+            # Convert lat, lon, alt to Earth-centered, Earth-fixed coordinates.
+            # Input: lla - (lat, lon, alt) in (decimal degrees, decimal degees, m)
+            # Output: ecef - (x, y, z) in (m, m, m)
+            # """
+            (X, Y, Z) = gps.lla2ecef( [lat, lon, alt])
+            (Xvel, Yvel, Zvel) = natural_velocity_to_ECEF(lat, lon, alt, data["course"], data["speed"])
+
+
+            position = (X, Y, Z)  # Coordonnées de l'entité
+            velocity = (Xvel, Yvel, Zvel)  # Vitesse de l'entité
 
             emitter.create_entity_sequence(entity_id, entity_type, position, velocity)
+
         yield task.deferLater(reactor, interval, lambda: None)
 
 def main():
