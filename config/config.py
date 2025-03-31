@@ -28,6 +28,7 @@ def load_config_from_env():
     udp_emitter_mode = os.getenv("DIS_EMITTER_MODE", "broadcast")
 
     http_endpoint_poller = os.getenv("HTTP_ENDPOINT_POLLER", "http://example.com/api/poll")
+    http_ack_endpoint = os.getenv('HTTP_ACK_ENDPOINT', "http://example.com/api/ack")
     poll_interval = float(os.getenv("POLL_INTERVAL", "5"))
     http_token_poller = os.getenv("HTTP_BEARER_TOKEN_POLLER", default_token)
 
@@ -41,6 +42,7 @@ def load_config_from_env():
         "http_receiver": http_endpoint_receiver,
         "http_token_receiver": http_token_receiver,
         "http_poller": http_endpoint_poller,
+        "http_ack_endpoint" : http_ack_endpoint,
         "http_token_poller": http_token_poller,
         "http_ignore_cert" : http_ignore_cert,  
         "poll_interval": poll_interval,

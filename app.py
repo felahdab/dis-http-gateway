@@ -19,8 +19,10 @@ gps = GPS()
 
 # Poll API and emit PDUs
 @inlineCallbacks
-def poll_api(endpoint, token, interval, emitter):
+def poll_api(endpoint, token, interval, emitter, ackendpoint):
     agent = Agent(reactor)
+    http_poster = HttpPoster(ackendpoint, token)
+
     while True:
         headers = Headers({
             "Authorization": [f"Bearer {token}"]
@@ -44,7 +46,6 @@ def poll_api(endpoint, token, interval, emitter):
 
         for enga in data:
             if "latitude" in enga and "longitude" in enga and "course" in enga and "speed" in enga:
-                print("handling data")
                 entity_id = 12345
                 entity_type = enga["entity_type"]
                 # EntityID: SISO-REF010 page 457/768
@@ -81,6 +82,7 @@ def poll_api(endpoint, token, interval, emitter):
 
                 #emitter.create_entity_sequence(entity_id, entity_type, position, velocity)
                 emitter.emit_entity_state(entity_id, entity_type, position, velocity)
+                http_poster.post_to_api({"engagement" : enga["id"]})
 
         yield task.deferLater(reactor, interval, lambda: None)
 
@@ -108,6 +110,7 @@ def main():
         config["http_token_poller"],
         config["poll_interval"],
         emitter,
+        config["http_ack_endpoint"]
     )
 
     reactor.run()

@@ -9,13 +9,13 @@ class HttpPoster:
         self.http_endpoint = http_endpoint
         self.http_token = http_token
 
-    def post_to_api(self, pdu_json):
+    def post_to_api(self, jsondumpable):
         agent = Agent(reactor)
         headers = Headers({
             "Content-Type": ["application/json"],
             "Authorization": [f"Bearer {self.http_token}"]
         })
-        body = json.dumps(pdu_json, indent=4)
+        body = json.dumps(jsondumpable, indent=4)
         #print(body)
         
         agent.request(

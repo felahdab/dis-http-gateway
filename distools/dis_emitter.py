@@ -161,7 +161,8 @@ class DISEmitter(DatagramProtocol):
         pdu.entityLinearVelocity.y = velocity[1]
         pdu.entityLinearVelocity.z = velocity[2]
 
-        print("Sending")
+        pdu.marking.setString('MISSILE')
+
         self.send_pdu(pdu)
 
 
