@@ -2,6 +2,7 @@ from twisted.internet.protocol import DatagramProtocol
 from twisted.internet import reactor, defer
 
 from opendis.dis7 import (
+    EntityStatePdu,
     CreateEntityPdu,
     AcknowledgePdu,
     DataPdu,
@@ -122,6 +123,41 @@ class DISEmitter(DatagramProtocol):
             deferred = self.pending_requests.pop(request_id)
             deferred.callback(pdu)  # Trigger the callback with the received PDU
             print(f"DataPdu received for request ID: {request_id}")
+
+    def emit_entity_state(self, entity_id, entity_type, position, velocity):
+        print("Emitting entity state")
+        pdu = EntityStatePdu()
+        # Les 4 lignes suivantes ne devraient pas être nécessaires, mais sans elles, on a un bug en struct.pack au moment de la serialisation.
+        pdu.pduStatus = 0
+        pdu.entityAppearance=0
+        pdu.capabilities=0
+        pdu.pduType=1 
+
+        pdu.entityID.siteID = self.config["remote_dis_site"]
+        pdu.entityID.applicationID = self.config["remote_dis_application"]
+        pdu.entityID.entityID = entity_id
+
+        pdu.entityType.entityKind = entity_type["kind"]
+        pdu.entityType.domain = entity_type["domain"]
+        pdu.entityType.country = entity_type["country"]
+        pdu.entityType.category = entity_type["category"]
+        pdu.entityType.subcategory = entity_type["subcategory"]
+        # pdu.entityType.specific = entity_type["specific"]
+        # pdu.entityType.extra = entity_type["extra"]
+
+        pdu.entityLocation.x = position[0]
+        pdu.entityLocation.y = position[1]
+        pdu.entityLocation.z = position[2]
+        # pdu.entityOrientation.psi   = 0
+        # pdu.entityOrientation.theta = 0
+        # pdu.entityOrientation.phi   = 0
+        pdu.entityLinearVelocity.x = velocity[0]
+        pdu.entityLinearVelocity.y = velocity[1]
+        pdu.entityLinearVelocity.z = velocity[2]
+
+        print("Sending")
+        self.send_pdu(pdu)
+
 
     def create_entity_sequence(self, entity_id, entity_type, position, velocity):
         """

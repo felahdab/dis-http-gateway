@@ -17,10 +17,10 @@ def load_config_from_env():
     http_endpoint_receiver = os.getenv("HTTP_ENDPOINT_RECEIVER", "http://example.com/api/receive")
     http_token_receiver = os.getenv("HTTP_BEARER_TOKEN_RECEIVER", default_token)
     
-    own_dis_site = os.getenv("OWN_DIS_SITE", 29)
-    own_dis_application = os.getenv("OWN_DIS_APPLICATION", 1)
-    remote_dis_site = os.getenv("REMOTE_DIS_SITE", 1)
-    remote_dis_application = os.getenv("REMOTE_DIS_APPLICATION", 42)
+    own_dis_site = int(os.getenv("OWN_DIS_SITE", 29))
+    own_dis_application = int(os.getenv("OWN_DIS_APPLICATION", 1))
+    remote_dis_site = int(os.getenv("REMOTE_DIS_SITE", 1))
+    remote_dis_application = int(os.getenv("REMOTE_DIS_APPLICATION", 42))
 
     # Emitter Configuration
     udp_emitter_ip = os.getenv("DIS_EMITTER_IP", "127.0.0.255")
