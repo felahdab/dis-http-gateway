@@ -137,20 +137,26 @@ class DISEmitter(DatagramProtocol):
         pdu.entityID.applicationID = self.config["remote_dis_application"]
         pdu.entityID.entityID = entity_id
 
+        pdu.forceId = 0 # 1: Friendly 2: Opposing [UID  6]
+
+        pdu.deadReckoningParameters.deadReckoningAlgorithm = 2
+
         pdu.entityType.entityKind = entity_type["kind"]
         pdu.entityType.domain = entity_type["domain"]
         pdu.entityType.country = entity_type["country"]
         pdu.entityType.category = entity_type["category"]
         pdu.entityType.subcategory = entity_type["subcategory"]
-        # pdu.entityType.specific = entity_type["specific"]
-        # pdu.entityType.extra = entity_type["extra"]
+        pdu.entityType.specific = entity_type["specific"]
+        pdu.entityType.extra = entity_type["extra"]
 
         pdu.entityLocation.x = position[0]
         pdu.entityLocation.y = position[1]
         pdu.entityLocation.z = position[2]
+
         # pdu.entityOrientation.psi   = 0
         # pdu.entityOrientation.theta = 0
         # pdu.entityOrientation.phi   = 0
+
         pdu.entityLinearVelocity.x = velocity[0]
         pdu.entityLinearVelocity.y = velocity[1]
         pdu.entityLinearVelocity.z = velocity[2]
