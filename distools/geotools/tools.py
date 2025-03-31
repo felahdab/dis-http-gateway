@@ -11,27 +11,26 @@ def natural_velocity_to_ECEF(latitude, longitude, altitude, course, speed):
     # course: in degrees
     # speed: in meters per second
 
-    initial_position = gps.llarpy2ecef(deg2rad(longitude),   # longitude (radians)
-                                       deg2rad(latitude), # latitude (radians)
-                                       altitude,               # altitude (meters)
-                                       0,               # roll (radians)
-                                       0,               # pitch (radians)
-                                       0                # yaw (radians)
-                                       )
+    #print("Latitude et longitude initiale: ", latitude, longitude)
+
+    initial_position = gps.lla2ecef([latitude, longitude, altitude])
     
-    latitude_variation_one_second = math.cos(deg2rad(course)) * speed
-    longitude_variation_one_second = math.sin(deg2rad(course)) * speed
+    #print("Position ECEF initiale: ", initial_position)
+    
+    latitude_variation_one_second = math.cos(math.radians(course)) * speed / ( 1854.0 * 60.0 )
+    longitude_variation_one_second = math.sin(math.radians(course)) * speed / ( 1854.0 * 60.0 * math.cos(math.radians(latitude)) ) 
+
+    #print("Variation de latitude et de longitude: ", latitude_variation_one_second, longitude_variation_one_second)
+
 
     latitude_after_one_second = latitude + latitude_variation_one_second
     longitude_after_one_second = longitude + longitude_variation_one_second
 
-    position_after_one_second = gps.llarpy2ecef(deg2rad(longitude_after_one_second),   # longitude (radians)
-                                       deg2rad(latitude_after_one_second), # latitude (radians)
-                                       altitude,               # altitude (meters)
-                                       0,               # roll (radians)
-                                       0,               # pitch (radians)
-                                       0                # yaw (radians)
-                                       )
+    #print("Latitude et de longitude apres 1 seconde: ", latitude_after_one_second, longitude_after_one_second)
+
+    position_after_one_second = gps.lla2ecef([latitude_after_one_second, longitude_after_one_second, altitude])
+    
+    #print(position_after_one_second)
     
     Xvelocity = position_after_one_second[0] - initial_position[0]
     Yvelocity = position_after_one_second[1] - initial_position[1]
@@ -39,4 +38,87 @@ def natural_velocity_to_ECEF(latitude, longitude, altitude, course, speed):
 
     # Returns velocity in ECEF frame
     # Each coordinate in meters per second
-    return [Xvelocity, Yvelocity, Zvelocity]
+    #print()
+    return (Xvelocity, Yvelocity, Zvelocity)
+
+def test_velocity():
+    latitude = 0
+    longitude = 0
+    altitude = 0
+    course = 0
+    speed = 1
+
+    (Xvelocity, Yvelocity, Zvelocity) = natural_velocity_to_ECEF(latitude, longitude, altitude, course, speed)
+    print("Following result should be very close to 0, 0, 1")
+    print (Xvelocity, Yvelocity, Zvelocity)
+    print()
+
+    latitude = 0
+    longitude = 0
+    altitude = 0
+    course = 90
+    speed = 1
+
+    (Xvelocity, Yvelocity, Zvelocity) = natural_velocity_to_ECEF(latitude, longitude, altitude, course, speed)
+    print("Following result should be very close to 0, 1, 0")
+    print (Xvelocity, Yvelocity, Zvelocity)
+    print()
+
+    latitude = 0
+    longitude = 0
+    altitude = 0
+    course = 180
+    speed = 1
+
+    (Xvelocity, Yvelocity, Zvelocity) = natural_velocity_to_ECEF(latitude, longitude, altitude, course, speed)
+    print("Following result should be very close to 0, 0, -1")
+    print (Xvelocity, Yvelocity, Zvelocity)
+    print()
+
+    latitude = 0
+    longitude = 0
+    altitude = 0
+    course = 270
+    speed = 1
+
+    (Xvelocity, Yvelocity, Zvelocity) = natural_velocity_to_ECEF(latitude, longitude, altitude, course, speed)
+    print("Following result should be very close to 0, -1, 0")
+    print (Xvelocity, Yvelocity, Zvelocity)
+    print()
+
+    latitude = 89.9
+    longitude = 0
+    altitude = 0
+    course = 0
+    speed = 1
+
+    (Xvelocity, Yvelocity, Zvelocity) = natural_velocity_to_ECEF(latitude, longitude, altitude, course, speed)
+    print("Following result should be very close to -1, 0, 0")
+    print (Xvelocity, Yvelocity, Zvelocity)
+    print()
+
+    latitude = 45
+    longitude = 0
+    altitude = 0
+    course = 0
+    speed = 1
+
+    (Xvelocity, Yvelocity, Zvelocity) = natural_velocity_to_ECEF(latitude, longitude, altitude, course, speed)
+    print("Following result should be very close to -0.707, 0, 0.707")
+    print (Xvelocity, Yvelocity, Zvelocity)
+    print()
+
+    latitude = 45
+    longitude = 0
+    altitude = 0
+    course = 90
+    speed = 1
+
+    (Xvelocity, Yvelocity, Zvelocity) = natural_velocity_to_ECEF(latitude, longitude, altitude, course, speed)
+    print("Following result should be very close to 0, 1, 0")
+    print (Xvelocity, Yvelocity, Zvelocity)
+    print()
+
+
+if __name__ == "__main__":
+     test_velocity()
