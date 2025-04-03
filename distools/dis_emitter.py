@@ -15,6 +15,7 @@ from opendis.RangeCoordinates import *
 from opendis.DataOutputStream import DataOutputStream
 
 from .datums.entity_datums import *
+from .pdus.tools import pdu_to_dict
 
 from io import BytesIO
 import json
@@ -32,7 +33,7 @@ class DISEmitter(DatagramProtocol):
         self.config = config
         self.pending_requests = {}  # Store Deferreds for pending requests
         self.socket = socket(AF_INET, SOCK_DGRAM)  # Create a UDP socket
-        self.requestID = 1029
+        self.requestID = 1029 # Utilisé uniquement dans le cas d'une séquence de PDU nécessitant un ACK.
 
         # Set the socket options (e.g., broadcast or multicast)
         if self.config["emitter"]["mode"] == "broadcast":
@@ -59,7 +60,7 @@ class DISEmitter(DatagramProtocol):
         destination = (self.config["emitter"]["ip"], self.config["emitter"]["port"])
 
         self.socket.sendto(data, destination)
-        print(f"Sent PDU: {pdu}")
+        print(f"Sent PDU: {pdu_to_dict(pdu)}")
 
     def send_pdu_with_response(self, pdu, timeout=5):
         """
@@ -85,7 +86,7 @@ class DISEmitter(DatagramProtocol):
         """
         try:
             pdu = PduFactory.create_pdu(data)
-            print(f"Received PDU from {addr}: {pdu}")
+            print(f"Received PDU from {addr}: {pdu_to_dict(pdu)}")
 
             # Dispatch based on PDU type
             if isinstance(pdu, AcknowledgePdu):
