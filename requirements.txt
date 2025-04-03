@@ -2,3 +2,4 @@
 twisted
 opendis
 dotenv
+pyOpenSSL

@@ -2,14 +2,19 @@ version: '3.4'
 
 services:
   test:
-    image: python:3.11-slim
+    image: dishttpgateway:0.1
     command: ["bash", "-c", "sleep infinity"]
     volumes:
       - ./:/app
-    networks:
-      - backend
+    network_mode: "host"
+    # ports:
+    #   - 3000:3000/udp
+    extra_hosts:
+      - "polaris-online.c2n.adalfantln.marine.defensecdd.gouv.fr:127.0.0.1"
+    # networks:
+    #   - backend
   disgateway:
-    image: python:3.11-slim
+    image: dishttpgateway:0.1
     command: ["bash", "-c", "sleep infinity"]
     volumes:
       - ./:/app

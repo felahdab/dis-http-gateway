@@ -3,6 +3,8 @@ from twisted.internet import reactor, task
 from twisted.internet.defer import inlineCallbacks
 from twisted.web.client import Agent, readBody
 from twisted.web.http_headers import Headers
+from twisted.internet.ssl import ClientContextFactory
+
 import json
 
 from config.config import load_config_from_env
@@ -17,14 +19,24 @@ from opendis.RangeCoordinates import GPS, deg2rad, rad2deg
 
 gps = GPS()
 
+class WebClientContextFactory(ClientContextFactory):
+    def getContext(self, hostname, port):
+        return ClientContextFactory.getContext(self)
+    
+
 # Poll API and emit PDUs
 @inlineCallbacks
-def poll_api(endpoint, token, interval, emitter, ackendpoint):
-    agent = Agent(reactor)
+def poll_api(endpoint, token, ignorecertificate, interval, emitter, ackendpoint):
+    if ignorecertificate:
+        contextFactory = WebClientContextFactory()
+        agent = Agent(reactor, contextFactory)
+    else:
+        agent = Agent(reactor)
     http_poster = HttpPoster(ackendpoint, token)
 
     while True:
         headers = Headers({
+            "User-Agent" : [ f"Mozilla/5.0 (platform; rv:gecko-version) Gecko/gecko-trail Firefox/firefox-version"],
             "Authorization": [f"Bearer {token}"]
         })
 
@@ -34,13 +46,13 @@ def poll_api(endpoint, token, interval, emitter, ackendpoint):
             data = json.loads(body)
             print(body)
         else: # code fictif simulant l'obtention d'un objet à générer depuis l'API REST.
-            data = {
+            data = [{
                 "latitude": 43.0,
                 "longitude": 5.0,
                 "course" : 230,
-                "speed": 12.3,
-                "entity_type" : {"kind": 2, "domain": 6, "country": 71, "category": 1, "subcategory": 1}
-            }
+                "speed": 0,
+                "entity_type" : {"kind": 2, "domain": 6, "country": 71, "category": 1, "subcategory": 1, "specific": 0, "extra": 0}
+            }]
 
         print(f"Received API data: {data}")
 
@@ -82,7 +94,8 @@ def poll_api(endpoint, token, interval, emitter, ackendpoint):
 
                 #emitter.create_entity_sequence(entity_id, entity_type, position, velocity)
                 emitter.emit_entity_state(entity_id, entity_type, position, velocity)
-                http_poster.post_to_api({"engagement" : enga["id"]})
+                if "id" in enga:
+                    http_poster.post_to_api({"engagement" : enga["id"]})
 
         yield task.deferLater(reactor, interval, lambda: None)
 
@@ -108,6 +121,7 @@ def main():
         poll_api,
         config["http_poller"],
         config["http_token_poller"],
+        config["http_ignore_cert"],
         config["poll_interval"],
         emitter,
         config["http_ack_endpoint"]

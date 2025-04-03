@@ -133,13 +133,18 @@ class DISEmitter(DatagramProtocol):
         pdu.capabilities=0
         pdu.pduType=1 
 
+        pdu.exerciseID = 1
+        pdu.protocolFamily = 1
+        pdu.length = 144
+        pdu.pduStatus = 6
+
         pdu.entityID.siteID = self.config["remote_dis_site"]
         pdu.entityID.applicationID = self.config["remote_dis_application"]
         pdu.entityID.entityID = entity_id
 
         pdu.forceId = 0 # 1: Friendly 2: Opposing [UID  6]
 
-        pdu.deadReckoningParameters.deadReckoningAlgorithm = 2
+        pdu.deadReckoningParameters.deadReckoningAlgorithm = 4
 
         pdu.entityType.entityKind = entity_type["kind"]
         pdu.entityType.domain = entity_type["domain"]
@@ -148,6 +153,16 @@ class DISEmitter(DatagramProtocol):
         pdu.entityType.subcategory = entity_type["subcategory"]
         pdu.entityType.specific = entity_type["specific"]
         pdu.entityType.extra = entity_type["extra"]
+
+        pdu.alternativeEntityType.entityKind = entity_type["kind"]
+        pdu.alternativeEntityType.domain = entity_type["domain"]
+        pdu.alternativeEntityType.country = entity_type["country"]
+        pdu.alternativeEntityType.category = entity_type["category"]
+        pdu.alternativeEntityType.subcategory = entity_type["subcategory"]
+        pdu.alternativeEntityType.specific = entity_type["specific"]
+        pdu.alternativeEntityType.extra = entity_type["extra"]
+
+        
 
         pdu.entityLocation.x = position[0]
         pdu.entityLocation.y = position[1]
