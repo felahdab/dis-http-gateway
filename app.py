@@ -40,7 +40,7 @@ def poll_api(endpoint, token, ignorecertificate, interval, emitter, ackendpoint)
             "Authorization": [f"Bearer {token}"]
         })
 
-        if (True): # Code réel à réactiver après tests.
+        if (False): # Code réel à réactiver après tests.
             response = yield agent.request(b"GET", endpoint.encode("utf-8"), headers)
             body = yield readBody(response)
             data = json.loads(body)
@@ -110,7 +110,8 @@ def main():
     # Initialize the HTTP poster
     http_poster = HttpPoster(config["http_receiver"], config["http_token_receiver"])
     # Initialize DIS receiver
-    receiver = DISReceiver(http_poster)
+    broadcast = config["receiver"]["mode"] == "broadcast"
+    receiver = DISReceiver(http_poster, broadcast)
     reactor.listenMulticast(config["receiver"]["port"], receiver, listenMultiple=True)
 
     # Initialize DIS emitter
