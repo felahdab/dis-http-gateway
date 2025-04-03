@@ -31,17 +31,23 @@ def pdu_to_dict(pdu_object):
     return result
 
 class DISReceiver(DatagramProtocol):
-    def __init__(self, poster):
+    def __init__(self, poster, broadcast):
         self.pdu_factory = PduFactory
         self.poster = poster
+        print("DISReceiver broadcast: " + str(broadcast))
+        self.broadcast = broadcast
+
+    def startProtocol(self):
+        if self.broadcast:
+            self.transport.setBroadcastAllowed(True)
 
     def datagramReceived(self, data, addr):
         try:
             pdu = self.pdu_factory.createPdu(data)
             if pdu:
-                print(f"Received PDU from {addr}: {pdu}")
+                pdu_json = pdu_to_dict(pdu)
+                print(f"Received PDU from {addr}: {pdu_json}")
                 if self.should_relay_pdu(pdu):
-                    pdu_json = pdu_to_dict(pdu)
                     self.poster.post_to_api(pdu_json)
         except Exception as e:
             print(f"Error decoding PDU: {e}")
