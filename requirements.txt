@@ -3,3 +3,4 @@ twisted
 opendis
 dotenv
 pyOpenSSL
+geopy
