@@ -13,6 +13,8 @@ from distools.dis_emitter import DISEmitter
 from distools.pdus.pdu_extension import extend_pdu_factory
 from distools.geotools.tools import natural_velocity_to_ECEF
 
+from simtools.objects import Missile
+
 from httptools.http_poster import HttpPoster
 
 from opendis.RangeCoordinates import GPS, deg2rad, rad2deg
@@ -50,7 +52,8 @@ def poll_api(endpoint, token, ignorecertificate, interval, emitter, ackendpoint)
                 "latitude": 43.0,
                 "longitude": 5.0,
                 "course" : 230,
-                "speed": 0,
+                "speed": 300,
+                "range" : 10,
                 "entity_type" : {"kind": 2, "domain": 6, "country": 71, "category": 1, "subcategory": 1, "specific": 0, "extra": 0}
             }]
 
@@ -58,6 +61,7 @@ def poll_api(endpoint, token, ignorecertificate, interval, emitter, ackendpoint)
 
         for enga in data:
             if "latitude" in enga and "longitude" in enga and "course" in enga and "speed" in enga:
+                
                 entity_id = 12345
                 entity_type = enga["entity_type"]
                 # EntityID: SISO-REF010 page 457/768
@@ -76,10 +80,12 @@ def poll_api(endpoint, token, ignorecertificate, interval, emitter, ackendpoint)
                 # roll  : roll of the entity in radians
                 # pitch : pitch of the entity in radians
                 # yaw   : yaw (heading) of the entity in radians
+
                 lat = enga["latitude"]
                 lon = enga["longitude"]
                 alt = 5
 
+                initial_position =[lat, lon, alt]
                 # """
                 # Convert lat, lon, alt to Earth-centered, Earth-fixed coordinates.
                 # Input: lla - (lat, lon, alt) in (decimal degrees, decimal degees, m)
@@ -87,13 +93,15 @@ def poll_api(endpoint, token, ignorecertificate, interval, emitter, ackendpoint)
                 # """
                 (X, Y, Z) = gps.lla2ecef( [lat, lon, alt])
                 (Xvel, Yvel, Zvel) = natural_velocity_to_ECEF(lat, lon, alt, enga["course"], enga["speed"])
-
-
                 position = (X, Y, Z)  # Coordonnées de l'entité
                 velocity = (Xvel, Yvel, Zvel)  # Vitesse de l'entité
+                #emitter.emit_entity_state(entity_id, entity_type, position, velocity)
 
-                #emitter.create_entity_sequence(entity_id, entity_type, position, velocity)
-                emitter.emit_entity_state(entity_id, entity_type, position, velocity)
+                missile = Missile(entity_id, entity_type, emitter, initial_position, enga["course"], enga["speed"], enga["range"])
+                loop = task.LoopingCall(missile.update)
+                missile.setLoop(loop)
+                loopDefered = loop.start(5.0)
+
                 if "id" in enga:
                     http_poster.post_to_api({"engagement" : enga["id"]})
 
