@@ -34,7 +34,7 @@ def poll_api(endpoint, token, ignorecertificate, interval, emitter, ackendpoint)
         agent = Agent(reactor, contextFactory)
     else:
         agent = Agent(reactor)
-    http_poster = HttpPoster(ackendpoint, token)
+    http_poster = HttpPoster(ackendpoint, token, ignorecertificate)
 
     while True:
         headers = Headers({
@@ -42,7 +42,7 @@ def poll_api(endpoint, token, ignorecertificate, interval, emitter, ackendpoint)
             "Authorization": [f"Bearer {token}"]
         })
 
-        if (False): # Code réel à réactiver après tests.
+        if (True): # Code réel à réactiver après tests.
             response = yield agent.request(b"GET", endpoint.encode("utf-8"), headers)
             body = yield readBody(response)
             data = json.loads(body)
@@ -97,7 +97,7 @@ def poll_api(endpoint, token, ignorecertificate, interval, emitter, ackendpoint)
                 velocity = (Xvel, Yvel, Zvel)  # Vitesse de l'entité
                 #emitter.emit_entity_state(entity_id, entity_type, position, velocity)
 
-                missile = Missile(entity_id, entity_type, emitter, initial_position, enga["course"], enga["speed"], enga["range"])
+                missile = Missile(entity_id, entity_type, emitter, initial_position, enga["course"], enga["speed"], enga["maxrange"])
                 loop = task.LoopingCall(missile.update)
                 missile.setLoop(loop)
                 loopDefered = loop.start(5.0)
@@ -116,7 +116,7 @@ def main():
     print(json.dumps(config, indent=3))
 
     # Initialize the HTTP poster
-    http_poster = HttpPoster(config["http_receiver"], config["http_token_receiver"])
+    http_poster = HttpPoster(config["http_receiver"], config["http_token_receiver"], config["http_ignore_cert"])
     # Initialize DIS receiver
     broadcast = config["receiver"]["mode"] == "broadcast"
     receiver = DISReceiver(http_poster, broadcast)
