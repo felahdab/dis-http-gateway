@@ -28,7 +28,7 @@ class WebClientContextFactory(ClientContextFactory):
 
 # Poll API and emit PDUs
 @inlineCallbacks
-def poll_api(endpoint, token, ignorecertificate, interval, emitter, ackendpoint):
+def poll_api(endpoint, token, ignorecertificate, interval, emitter, ackendpoint, is_debug_on):
     if ignorecertificate:
         contextFactory = WebClientContextFactory()
         agent = Agent(reactor, contextFactory)
@@ -42,26 +42,25 @@ def poll_api(endpoint, token, ignorecertificate, interval, emitter, ackendpoint)
             "Authorization": [f"Bearer {token}"]
         })
 
-        if (True): # Code réel à réactiver après tests.
-            response = yield agent.request(b"GET", endpoint.encode("utf-8"), headers)
-            body = yield readBody(response)
-            data = json.loads(body)
-            print(body)
-        else: # code fictif simulant l'obtention d'un objet à générer depuis l'API REST.
+        if (is_debug_on): # code fictif simulant l'obtention d'un objet à générer depuis l'API REST.
             data = [{
                 "latitude": 43.0,
                 "longitude": 5.0,
                 "course" : 230,
                 "speed": 300,
-                "range" : 10,
+                "maxrange" : 10,
                 "entity_type" : {"kind": 2, "domain": 6, "country": 71, "category": 1, "subcategory": 1, "specific": 0, "extra": 0}
             }]
+        else: # Code réel à réactiver après tests.
+            response = yield agent.request(b"GET", endpoint.encode("utf-8"), headers)
+            body = yield readBody(response)
+            data = json.loads(body)
+            print(body)
 
         print(f"Received API data: {data}")
 
         for enga in data:
             if "latitude" in enga and "longitude" in enga and "course" in enga and "speed" in enga:
-                
                 entity_id = 12345
                 entity_type = enga["entity_type"]
                 # EntityID: SISO-REF010 page 457/768
@@ -84,7 +83,6 @@ def poll_api(endpoint, token, ignorecertificate, interval, emitter, ackendpoint)
                 lat = enga["latitude"]
                 lon = enga["longitude"]
                 alt = 5
-
                 initial_position =[lat, lon, alt]
                 # """
                 # Convert lat, lon, alt to Earth-centered, Earth-fixed coordinates.
@@ -95,16 +93,13 @@ def poll_api(endpoint, token, ignorecertificate, interval, emitter, ackendpoint)
                 (Xvel, Yvel, Zvel) = natural_velocity_to_ECEF(lat, lon, alt, enga["course"], enga["speed"])
                 position = (X, Y, Z)  # Coordonnées de l'entité
                 velocity = (Xvel, Yvel, Zvel)  # Vitesse de l'entité
-                #emitter.emit_entity_state(entity_id, entity_type, position, velocity)
-
+                emitter.emit_entity_state(entity_id, entity_type, position, velocity)
                 missile = Missile(entity_id, entity_type, emitter, initial_position, enga["course"], enga["speed"], enga["maxrange"])
                 loop = task.LoopingCall(missile.update)
                 missile.setLoop(loop)
                 loopDefered = loop.start(5.0)
-
                 if "id" in enga:
                     http_poster.post_to_api({"engagement" : enga["id"]})
-
         yield task.deferLater(reactor, interval, lambda: None)
 
 def main():
@@ -133,7 +128,8 @@ def main():
         config["http_ignore_cert"],
         config["poll_interval"],
         emitter,
-        config["http_ack_endpoint"]
+        config["http_ack_endpoint"],
+        config["is_debug_on"]
     )
 
     reactor.run()
