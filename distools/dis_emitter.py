@@ -139,13 +139,11 @@ class DISEmitter(DatagramProtocol):
         pdu.length = 144
         pdu.pduStatus = 6
 
-        pdu.entityID.siteID = self.config["remote_dis_site"]
-        pdu.entityID.applicationID = self.config["remote_dis_application"]
-        pdu.entityID.entityID = entity_id
+        pdu.entityID = entity_id
 
         pdu.forceId = 0 # 1: Friendly 2: Opposing [UID  6]
 
-        pdu.deadReckoningParameters.deadReckoningAlgorithm = 4
+        pdu.deadReckoningParameters.deadReckoningAlgorithm = 4 # DRM (RVW) - High Speed or Maneuvering Entity with Extrapolation of Orientation [UID 44]
 
         pdu.entityType.entityKind = entity_type["kind"]
         pdu.entityType.domain = entity_type["domain"]
@@ -177,7 +175,7 @@ class DISEmitter(DatagramProtocol):
         pdu.entityLinearVelocity.y = velocity[1]
         pdu.entityLinearVelocity.z = velocity[2]
 
-        pdu.marking.characterSet=1
+        pdu.marking.characterSet=1 # ASCII [UID 45]
         pdu.marking.setString('MISSILE')
 
         self.send_pdu(pdu)
