@@ -3,3 +3,4 @@
 Doc/
 build/
 dist/
+*trial_temp
