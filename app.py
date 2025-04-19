@@ -18,6 +18,7 @@ from simtools.objects import Missile
 from httptools.http_poster import HttpPoster
 
 from opendis.RangeCoordinates import GPS, deg2rad, rad2deg
+from opendis.dis7 import EntityID
 
 gps = GPS()
 
@@ -28,7 +29,7 @@ class WebClientContextFactory(ClientContextFactory):
 
 # Poll API and emit PDUs
 @inlineCallbacks
-def poll_api(endpoint, token, ignorecertificate, interval, emitter, ackendpoint):
+def poll_api(endpoint, token, ignorecertificate, interval, emitter, ackendpoint, is_debug_on):
     if ignorecertificate:
         contextFactory = WebClientContextFactory()
         agent = Agent(reactor, contextFactory)
@@ -41,31 +42,34 @@ def poll_api(endpoint, token, ignorecertificate, interval, emitter, ackendpoint)
             "User-Agent" : [ f"Mozilla/5.0 (platform; rv:gecko-version) Gecko/gecko-trail Firefox/firefox-version"],
             "Authorization": [f"Bearer {token}"]
         })
-
-        if (True): # Code réel à réactiver après tests.
+        if (is_debug_on): # code fictif simulant l'obtention d'un objet à générer depuis l'API REST.
+            data = [{
+                "id": 4,
+                "timestamp": "2025-04-17T00:00:00.000000Z",
+                "latitude": 43.0,
+                "longitude": 5.0,
+                "target_latitude": 44,
+                "target_longitude": 5,
+                "AN": 1,
+                "EN": 22,
+                "entity_type" : {"kind": 2, "domain": 6, "country": 71, "category": 1, "subcategory": 1, "specific": 4, "extra": 0},
+                "speed": 318,
+                "course" : 230,
+                "maxrange" : 10,
+            }]
+        else: # Code réel à réactiver après tests.
             response = yield agent.request(b"GET", endpoint.encode("utf-8"), headers)
             body = yield readBody(response)
             data = json.loads(body)
             print(body)
-        else: # code fictif simulant l'obtention d'un objet à générer depuis l'API REST.
-            data = [{
-                "latitude": 43.0,
-                "longitude": 5.0,
-                "course" : 230,
-                "speed": 300,
-                "range" : 10,
-                "entity_type" : {"kind": 2, "domain": 6, "country": 71, "category": 1, "subcategory": 1, "specific": 0, "extra": 0}
-            }]
 
         print(f"Received API data: {data}")
 
         for enga in data:
             if "latitude" in enga and "longitude" in enga and "course" in enga and "speed" in enga:
-                
-                entity_id = 12345
                 entity_type = enga["entity_type"]
-                # EntityID: SISO-REF010 page 457/768
-                # EntityID = 2.6.71.1.1.1 : MM 38 Exocet
+                # EntityType: SISO-REF010 page 457/768
+                # EntityType = 2.6.71.1.1.1 : MM 38 Exocet
                 #            2.6.71.1.1.4 : MM 40 Exocet
                 # kind=2
                 # domain=6: 
@@ -84,27 +88,14 @@ def poll_api(endpoint, token, ignorecertificate, interval, emitter, ackendpoint)
                 lat = enga["latitude"]
                 lon = enga["longitude"]
                 alt = 5
-
                 initial_position =[lat, lon, alt]
-                # """
-                # Convert lat, lon, alt to Earth-centered, Earth-fixed coordinates.
-                # Input: lla - (lat, lon, alt) in (decimal degrees, decimal degees, m)
-                # Output: ecef - (x, y, z) in (m, m, m)
-                # """
-                (X, Y, Z) = gps.lla2ecef( [lat, lon, alt])
-                (Xvel, Yvel, Zvel) = natural_velocity_to_ECEF(lat, lon, alt, enga["course"], enga["speed"])
-                position = (X, Y, Z)  # Coordonnées de l'entité
-                velocity = (Xvel, Yvel, Zvel)  # Vitesse de l'entité
-                #emitter.emit_entity_state(entity_id, entity_type, position, velocity)
-
+                entity_id = EntityID(emitter.get_RemoteDISSite(), enga["AN"], enga["EN"])
                 missile = Missile(entity_id, entity_type, emitter, initial_position, enga["course"], enga["speed"], enga["maxrange"])
                 loop = task.LoopingCall(missile.update)
                 missile.setLoop(loop)
                 loopDefered = loop.start(5.0)
-
                 if "id" in enga:
                     http_poster.post_to_api({"engagement" : enga["id"]})
-
         yield task.deferLater(reactor, interval, lambda: None)
 
 def main():
@@ -133,7 +124,8 @@ def main():
         config["http_ignore_cert"],
         config["poll_interval"],
         emitter,
-        config["http_ack_endpoint"]
+        config["http_ack_endpoint"],
+        config["is_debug_on"]
     )
 
     reactor.run()

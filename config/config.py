@@ -17,8 +17,6 @@ def load_config_from_env():
     http_endpoint_receiver = os.getenv("HTTP_ENDPOINT_RECEIVER", "http://example.com/api/receive")
     http_token_receiver = os.getenv("HTTP_BEARER_TOKEN_RECEIVER", default_token)
     
-    own_dis_site = int(os.getenv("OWN_DIS_SITE", 29))
-    own_dis_application = int(os.getenv("OWN_DIS_APPLICATION", 1))
     remote_dis_site = int(os.getenv("REMOTE_DIS_SITE", 1))
     remote_dis_application = int(os.getenv("REMOTE_DIS_APPLICATION", 42))
 
@@ -31,10 +29,12 @@ def load_config_from_env():
     http_ack_endpoint = os.getenv('HTTP_ACK_ENDPOINT', "http://example.com/api/ack")
     poll_interval = float(os.getenv("POLL_INTERVAL", "5"))
     http_token_poller = os.getenv("HTTP_BEARER_TOKEN_POLLER", default_token)
+    
+    # Debug mode. If true, use dummy data, else poll engagements from API
+    is_debug_on = os.getenv("IS_DEBUG_ON", "false") == "true"
+    
 
     return {
-        "own_dis_site" : own_dis_site,
-        "own_dis_application" : own_dis_application,
         "remote_dis_site" : remote_dis_site,
         "remote_dis_application" : remote_dis_application,
         "receiver": {"ip": udp_receiver_ip, "port": udp_receiver_port, "mode": udp_receiver_mode},
@@ -46,4 +46,5 @@ def load_config_from_env():
         "http_token_poller": http_token_poller,
         "http_ignore_cert" : http_ignore_cert,  
         "poll_interval": poll_interval,
+        "is_debug_on": is_debug_on,
     }

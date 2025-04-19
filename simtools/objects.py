@@ -1,3 +1,4 @@
+# -*- test-case-name: simtools.test.test_objects -*-
 import datetime
 import math
 
