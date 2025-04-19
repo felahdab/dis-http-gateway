@@ -4,3 +4,7 @@ Doc/
 build/
 dist/
 *trial_temp
+WPy*
+Winpython*
+dis-http-gateway-portable/
+dis-http-gateway-portable.*

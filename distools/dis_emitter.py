@@ -44,6 +44,9 @@ class DISEmitter(DatagramProtocol):
             self.socket.setsockopt(SOL_SOCKET, SO_REUSEADDR, 1)
             self.socket.bind((self.config["ip"], self.config["port"]))
 
+    def get_RemoteDISSite(self):
+        return self.config["remote_dis_site"]
+
     def get_requestID(self):
         ret = self.requestID
         self.requestID = self.requestID + 1
