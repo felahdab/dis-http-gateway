@@ -22,6 +22,7 @@ class Missile():
         self.current_timestamp = self.initial_timestamp
         self.range = range
         self.loop = None
+        self.is_out_of_range = False
 
     def setLoop(self, loop):
         self.loop = loop
@@ -43,6 +44,7 @@ class Missile():
 
         print("Distance from shooting point: ", dist)
         if  dist > self.range:
+            self.is_out_of_range = True
             self.stopLoop()
 
         return
@@ -63,3 +65,6 @@ class Missile():
         velocity = (Xvel, Yvel, Zvel)  # Vitesse de l'entité
 
         self.emitter.emit_entity_state(self.entity_id, self.entity_type, position, velocity)
+        
+    def get_missile_is_out_of_range(self):
+        return self.is_out_of_range
