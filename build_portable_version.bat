@@ -26,6 +26,10 @@ set PIP=%cd%\python-3.10.11.amd64\Scripts\pip.exe
 :: --------------------------------------
 echo Installing project requirements...
 %PYTHON% -m pip install -r ..\requirements.txt
+IF %ERRORLEVEL% NEQ 0 (
+    echo [ERROR] Failed to install Python dependencies. Make sure you are able to access pip repositories
+    exit /b %ERRORLEVEL%
+)
 
 echo Removing unused EXE files from WinPython root...
 

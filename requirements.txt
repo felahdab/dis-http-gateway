@@ -4,3 +4,5 @@ opendis
 dotenv
 pyOpenSSL
 geopy
+treq
+service_identity
