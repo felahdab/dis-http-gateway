@@ -121,6 +121,8 @@ class DISCommunicator(DatagramProtocol):
         pdu.entityLocation = Vector3Double(x=1000.0, y=2000.0, z=300.0)
         pdu.entityLinearVelocity = Vector3Float(x=0.0, y=0.0, z=0.0)
         pdu.entityAppearance = 0
+        pdu.marking.characterSet = 1  # ASCII [UID 45]
+        pdu.marking.setString("MISSILE")
         self.entity_number += 1
         return pdu
 
