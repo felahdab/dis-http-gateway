@@ -42,7 +42,7 @@ class Missile():
 
         dist = distance.distance(self.current_position, self.initial_position).km
 
-        print("Distance from shooting point: ", dist)
+        print("[DIS INFO] Distance from shooting point: ", dist)
         if  dist > self.range:
             self.is_out_of_range = True
             self.stopLoop()

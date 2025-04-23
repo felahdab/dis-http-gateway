@@ -5,7 +5,7 @@ class HttpPoster:
         self.ack_endpoint = ack_endpoint
         self.http_token = http_token
 
-    async def post_ack_to_api(self, json_payload):
+    async def post_to_api(self, json_payload, is_ack):
         headers = {
             "User-Agent" : [ f"Mozilla/5.0 (platform; rv:gecko-version) Gecko/gecko-trail Firefox/firefox-version"],
             "Content-Type": "application/json",
@@ -13,10 +13,10 @@ class HttpPoster:
         }
         try:
             response = await self.http_client.post(
-                self.ack_endpoint,
+                self.ack_endpoint if is_ack else self.endpoint_receiver,
                 headers=headers,
                 json=json_payload
             )
-            print(f"[HttpPoster] HTTP POST response: {response.code}")
+            print(f"[HTTP INFO:{"ACK" if is_ack else "PDU"}] HTTP POST response: {response.code}")
         except Exception as e:
-            print(f"[HttpPoster] HTTP POST failed: {e}")
+            print(f"[HTTP INFO:{"ACK" if is_ack else "PDU"}] HTTP POST failed: {e}")

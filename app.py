@@ -8,8 +8,7 @@ from twisted.web.iweb import IPolicyForHTTPS
 from urllib.parse import urlparse
 
 from config.config import load_config_from_env
-from distools.dis_receiver import DISReceiver
-from distools.dis_emitter import DISEmitter
+from distools.dis_communicator import DISCommunicator
 from distools.pdus.pdu_extension import extend_pdu_factory
 from httptools.http_poster import HttpPoster
 from httptools.http_poller import HttpPoller
@@ -19,7 +18,6 @@ from zope.interface import implementer
 @implementer(IPolicyForHTTPS)
 class WhitelistContextFactory:
     def __init__(self, good_domains=None):
-        print(good_domains)
         self.good_domains = good_domains or []
         self.default_policy = BrowserLikePolicyForHTTPS()
 
@@ -35,25 +33,24 @@ def main():
     except ValueError as e:
         print(f"[ERROR] {e}")
         return
-    print(json.dumps(config, indent=3))
-    
+    # print(json.dumps(config, indent=3))
     poller_domain = urlparse(config["http_poller"]).hostname
     ack_domain = urlparse(config["http_ack_endpoint"]).hostname
     whitelist_domains = [d.encode("utf-8") for d in {poller_domain, ack_domain}] # Has to be encoded because Twisted creatorForNetloc takes hostnames as byte arrays
     # Setup treq with custom agent
     agent = Agent(reactor, contextFactory=WhitelistContextFactory(whitelist_domains))
     shared_http_client = HTTPClient(agent)
+    
+    http_poster = HttpPoster(shared_http_client, config["http_receiver"], config["http_ack_endpoint"],config["http_token_receiver"])
 
-    http_poster = HttpPoster(shared_http_client, config["http_receiver"], config["http_ack_endpoint"], config["http_token_receiver"])
-    receiver = DISReceiver(http_poster, config["receiver"]["ip"], config["receiver"]["mode"])
-    emitter = DISEmitter(config["emitter"]["ip"], config["emitter"]["port"], config["emitter"]["mode"], config["remote_dis_site"])
-    reactor.listenMulticast(config["receiver"]["port"], receiver, listenMultiple=True)
+    communicator = DISCommunicator(http_poster, config["receiver"], config["emitter"], config["remote_dis_site"])
+    reactor.listenMulticast(config["receiver"]["port"], communicator, listenMultiple=True)
 
     poller = HttpPoller(
         config["http_poller"],
         config["http_token_poller"],
         config["poll_interval"],
-        emitter,
+        communicator,
         http_poster,
         config["http_ack_endpoint"],
         config["is_debug_on"],

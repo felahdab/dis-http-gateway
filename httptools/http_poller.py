@@ -23,10 +23,9 @@ class HttpPoller:
             try:
                 print("=====================================================================================")
                 data = await self.fetch_data()
-                print(f"Received API data: {data}")
                 await self.process_engagements(data)
             except Exception as e:
-                print(f"Error fetching or processing data: {e}")
+                print(f"[HTTP POLL ERROR] {e}")
             await task.deferLater(reactor, self.interval, lambda: None)
 
     async def fetch_data(self):
@@ -55,6 +54,7 @@ class HttpPoller:
                 "Authorization": f"Bearer {self.token}"
             })
             if response.code == http.OK:
+                print(f"[HTTP POLL] Polled engagement from {self.endpoint}")
                 return await response.json()
             else:
                 # message = await response.text() # full error
@@ -87,4 +87,4 @@ class HttpPoller:
                     missile.setLoop(loop)
                     loop.start(5.0)
                     if "EN" in enga:
-                        await self.http_poster.post_ack_to_api({"engagement" : enga["EN"]})
+                        await self.http_poster.post_to_api({"engagement" : enga["EN"]}, is_ack=True)

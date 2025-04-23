@@ -1,106 +1,114 @@
-from twisted.internet.protocol import DatagramProtocol, IMulticastTransport
-from twisted.internet import reactor, defer
-
-from opendis.dis7 import (
-    EntityStatePdu,
-    CreateEntityPdu,
-    AcknowledgePdu,
-    DataPdu,
-    SetDataPdu,
-    VariableDatum,
-    DatumSpecification
-)
-from opendis import PduFactory
-from opendis.RangeCoordinates import *
-from opendis.DataOutputStream import DataOutputStream
-
-from .datums.entity_datums import *
-from .pdus.tools import pdu_to_dict
-
 from io import BytesIO
-import json
-import struct
-from .dis_receiver import IPTransmissionType
-from socket import socket, AF_INET, SOCK_DGRAM, SOL_SOCKET, SO_BROADCAST, SO_REUSEADDR, IP_MULTICAST_IF, inet_aton
-import os
 
-class DISEmitter(DatagramProtocol):
-    def __init__(self, addr, port, mode, remote_dis_site):
-        """
-        Initialize the DIS emitter with configuration details.
+from twisted.internet.defer import ensureDeferred
+from twisted.internet.protocol import DatagramProtocol
 
-        :param config: A dictionary containing configuration for the emitter.
-        """
-        self.addr = addr
-        self.port = port
+from opendis.DataOutputStream import DataOutputStream
+from opendis.dis7 import EntityStatePdu, EntityType, Vector3Double, Vector3Float
+from opendis import PduFactory
+from .pdus.tools import pdu_to_dict
+from enum import IntEnum
+
+ENTITY_TYPE_MAP = {
+    (1, 2, 78, 22, 2, 0): "NH90",
+    (2, 6, 71, 1, 1, 4): "ExocetMM40",
+    (1, 3, 62, 6, 5, 1): "Normandie",
+}
+
+class IPTransmissionType(IntEnum):
+    UNICAST = 0
+    MULTICAST = 1
+    BROADCAST = 2
+
+class DISCommunicator(DatagramProtocol):
+    def __init__(self, http_poster, receiver, emitter, remote_dis_site):
+        self.pdu_factory = PduFactory
+        self.http_poster = http_poster
+        self.recv_group_ip = receiver["ip"]
+        self.recv_mode = IPTransmissionType(receiver["mode"])
+        self.send_addr = emitter["ip"]
+        self.send_port = emitter["port"]
+        self.send_mode = IPTransmissionType(emitter["mode"])
         self.remote_dis_site = remote_dis_site
-        self.socket = socket(AF_INET, SOCK_DGRAM)  # Create a UDP socket
-        self.mode = IPTransmissionType(mode)
-        print(f"DISEmitter initialized in {self.mode.name}")
-        # self.pending_requests = {}  # Store Deferreds for pending requests
-        # self.requestID = 1029 # Utilisé uniquement dans le cas d'une séquence de PDU nécessitant un ACK.
+        self.loop = None
 
-        # Set the socket options (e.g., broadcast or multicast)
-        if self.mode == IPTransmissionType.BROADCAST:
-            self.socket.setsockopt(SOL_SOCKET, SO_BROADCAST, 1)
-        elif self.mode == IPTransmissionType.MULTICAST:
-            self.socket.setsockopt(SOL_SOCKET, SO_REUSEADDR, 1)
+    def startProtocol(self):
+        # RECEIVER setup
+        if (self.recv_mode == IPTransmissionType.MULTICAST):
+            self.transport.joinGroup(self.recv_group_ip)
+            print(f"[DIS INFO] Joined multicast group {self.recv_group_ip}")
+        elif (self.recv_mode == IPTransmissionType.BROADCAST):
+            self.transport.setBroadcastAllowed(True)
 
+        # EMITTER setup
+        print(f"[DIS INFO] DISEmitter started in {self.send_mode.name} mode.")
+
+    def datagramReceived(self, data, addr):
+        ensureDeferred(self.handle_pdu(data, addr))
+            
+    async def handle_pdu(self, data, addr):
+        try:
+            print(f"[DIS RECV] From {addr}: {data[:16]}...")
+            pdu = self.pdu_factory.createPdu(data)
+            if pdu:
+                pdu_json = pdu_to_dict(pdu)
+                print(f"Received PDU from {addr}:")
+                # pprint(pdu_json)
+                if self.should_relay_pdu(pdu):
+                    await self.poster.post_to_api(pdu_json, is_ack=False)
+        except Exception as e:
+            print(f"Error decoding PDU: {e}")
+ 
+    def get_entity_name(self, pdu="Unkown"):
+        entity_type = pdu.entityType
+        return ENTITY_TYPE_MAP.get((entity_type.entityKind, entity_type.domain, entity_type.country, entity_type.category, entity_type.subcategory, entity_type.specific), "UnknownEntity")
+
+    def send_pdu(self, pdu):
+        memoryStream = BytesIO()
+        outputStream = DataOutputStream(memoryStream)
+        pdu.serialize(outputStream)
+        data = memoryStream.getvalue()
+        self.transport.write(data, (self.send_addr, self.send_port))
+        EID = pdu.entityID
+        print(f"[DIS SEND] {self.get_entity_name(pdu)} Entity with SN={EID.siteID:<2}, AN={EID.applicationID:<3}, EN={EID.entityID:<3} sent to {self.send_addr}:{self.send_port}")
+
+    def should_relay_pdu(self, pdu):
+        return isinstance(pdu, EntityStatePdu)
+    
+    def emit_entity_state(self, entity_id, entity_type, position, velocity):
+        pdu = EntityStatePdu()
+        # Les 4 lignes suivantes ne devraient pas être nécessaires, mais sans elles, on a un bug en struct.pack au moment de la serialisation.
+        pdu.pduStatus = 0
+        pdu.entityAppearance=0
+        pdu.capabilities=0
+        pdu.pduType=1
+
+        pdu.exerciseID = 1
+        pdu.protocolFamily = 1
+        pdu.length = 144
+        pdu.pduStatus = 6
+        pdu.entityID = entity_id
+        pdu.deadReckoningParameters.deadReckoningAlgorithm = 4 # DRM (RVW) - High Speed or Maneuvering Entity with Extrapolation of Orientation [UID 44]
+
+        pdu.forceId = 0 # 1: Friendly 2: Opposing [UID  6]
+
+        pdu.entityType = EntityType(entity_type["kind"], entity_type["domain"], entity_type["country"], entity_type["category"], entity_type["subcategory"], entity_type["specific"], entity_type["extra"])
+        pdu.entityLocation = Vector3Double(position[0], position[1], position[2])
+        pdu.entityLinearVelocity = Vector3Float(velocity[0], velocity[1], velocity[2])
+        pdu.marking.characterSet = 1  # ASCII [UID 45]
+        pdu.marking.setString("MISSILE")
+
+        self.send_pdu(pdu)
+    
     def get_RemoteDISSite(self):
         return self.remote_dis_site
+
 
     # def get_requestID(self):
     #     ret = self.requestID
     #     self.requestID = self.requestID + 1
     #     return ret
-
-    def send_pdu(self, pdu):
-        """
-        Encode and send a PDU over the network.
-        """
-        memoryStream = BytesIO()
-        outputStream = DataOutputStream(memoryStream)
-        pdu.serialize(outputStream)
-        data = memoryStream.getvalue()
-        destination = (self.addr, self.port)
-
-        self.socket.sendto(data, destination)
-        print(f"Sent PDU: {pdu_to_dict(pdu)}")
-
-    # def send_pdu_with_response(self, pdu, timeout=5):
-    #     """
-    #     Send a PDU and return a Deferred that will be called back on response.
-    #     """
-    #     request_id = getattr(pdu, "requestID", None)
-    #     if request_id is None:
-    #         raise ValueError("PDU must have a requestID for tracking responses.")
-
-    #     deferred = defer.Deferred()
-    #     self.pending_requests[request_id] = deferred
-
-    #     # Set a timeout for the request
-    #     reactor.callLater(timeout, self.handle_timeout, request_id)
-
-    #     # Send the PDU
-    #     self.send_pdu(pdu)
-    #     return deferred
     
-    def datagramReceived(self, data, addr):
-        """
-        Handle incoming PDUs.
-        """
-        try:
-            pdu = PduFactory.create_pdu(data)
-            print(f"Received PDU from {addr}: {pdu_to_dict(pdu)}")
-
-            # Dispatch based on PDU type
-            # if isinstance(pdu, AcknowledgePdu):
-            #     self.handle_acknowledge_pdu(pdu)
-            # elif isinstance(pdu, DataPdu):
-            #     self.handle_data_pdu(pdu)
-        except Exception as e:
-            print(f"Error decoding PDU: {e}")
-
     # def handle_acknowledge_pdu(self, pdu):
     #     """
     #     Process an AcknowledgePdu and trigger the corresponding Deferred.
@@ -130,62 +138,24 @@ class DISEmitter(DatagramProtocol):
     #         deferred.callback(pdu)  # Trigger the callback with the received PDU
     #         print(f"DataPdu received for request ID: {request_id}")
 
-    def emit_entity_state(self, entity_id, entity_type, position, velocity):
-        print("Emitting entity state")
-        pdu = EntityStatePdu()
-        # Les 4 lignes suivantes ne devraient pas être nécessaires, mais sans elles, on a un bug en struct.pack au moment de la serialisation.
-        pdu.pduStatus = 0
-        pdu.entityAppearance=0
-        pdu.capabilities=0
-        pdu.pduType=1 
+    # def send_pdu_with_response(self, pdu, timeout=5):
+    #     """
+    #     Send a PDU and return a Deferred that will be called back on response.
+    #     """
+    #     request_id = getattr(pdu, "requestID", None)
+    #     if request_id is None:
+    #         raise ValueError("PDU must have a requestID for tracking responses.")
 
-        pdu.exerciseID = 1
-        pdu.protocolFamily = 1
-        pdu.length = 144
-        pdu.pduStatus = 6
+    #     deferred = defer.Deferred()
+    #     self.pending_requests[request_id] = deferred
 
-        pdu.entityID = entity_id
+    #     # Set a timeout for the request
+    #     reactor.callLater(timeout, self.handle_timeout, request_id)
 
-        pdu.forceId = 0 # 1: Friendly 2: Opposing [UID  6]
-
-        pdu.deadReckoningParameters.deadReckoningAlgorithm = 4 # DRM (RVW) - High Speed or Maneuvering Entity with Extrapolation of Orientation [UID 44]
-
-        pdu.entityType.entityKind = entity_type["kind"]
-        pdu.entityType.domain = entity_type["domain"]
-        pdu.entityType.country = entity_type["country"]
-        pdu.entityType.category = entity_type["category"]
-        pdu.entityType.subcategory = entity_type["subcategory"]
-        pdu.entityType.specific = entity_type["specific"]
-        pdu.entityType.extra = entity_type["extra"]
-
-        pdu.alternativeEntityType.entityKind = entity_type["kind"]
-        pdu.alternativeEntityType.domain = entity_type["domain"]
-        pdu.alternativeEntityType.country = entity_type["country"]
-        pdu.alternativeEntityType.category = entity_type["category"]
-        pdu.alternativeEntityType.subcategory = entity_type["subcategory"]
-        pdu.alternativeEntityType.specific = entity_type["specific"]
-        pdu.alternativeEntityType.extra = entity_type["extra"]
-
-        
-
-        pdu.entityLocation.x = position[0]
-        pdu.entityLocation.y = position[1]
-        pdu.entityLocation.z = position[2]
-
-        # pdu.entityOrientation.psi   = 0
-        # pdu.entityOrientation.theta = 0
-        # pdu.entityOrientation.phi   = 0
-
-        pdu.entityLinearVelocity.x = velocity[0]
-        pdu.entityLinearVelocity.y = velocity[1]
-        pdu.entityLinearVelocity.z = velocity[2]
-
-        pdu.marking.characterSet=1 # ASCII [UID 45]
-        pdu.marking.setString('MISSILE')
-
-        self.send_pdu(pdu)
-
-
+    #     # Send the PDU
+    #     self.send_pdu(pdu)
+    #     return deferred
+    
     # def create_entity_sequence(self, entity_id, entity_type, position, velocity):
     #     """
     #     Cette méthode doit gérer le trafic DIS nécessaire pour créér un objet dans la simulation.
