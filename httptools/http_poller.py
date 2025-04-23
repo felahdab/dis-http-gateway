@@ -21,7 +21,7 @@ class HttpPoller:
     async def run(self):
         while True:
             try:
-                print("=====================================================================================")
+                print("=============================================================")
                 data = await self.fetch_data()
                 await self.process_engagements(data)
             except Exception as e:

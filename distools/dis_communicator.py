@@ -24,38 +24,44 @@ class DISCommunicator(DatagramProtocol):
     def __init__(self, http_poster, receiver, emitter, remote_dis_site):
         self.pdu_factory = PduFactory
         self.http_poster = http_poster
-        self.recv_group_ip = receiver["ip"]
+        self.recv_addr = receiver["ip"]
         self.recv_mode = IPTransmissionType(receiver["mode"])
-        self.send_addr = emitter["ip"]
-        self.send_port = emitter["port"]
         self.send_mode = IPTransmissionType(emitter["mode"])
+        self.send_addr = "<broadcast>" if self.send_mode == IPTransmissionType.BROADCAST else emitter["ip"]
+        self.send_port = emitter["port"]
         self.remote_dis_site = remote_dis_site
         self.loop = None
 
     def startProtocol(self):
+        print(f"[DIS INFO] DISEmitter started in {self.send_mode.name} mode.")
         # RECEIVER setup
         if (self.recv_mode == IPTransmissionType.MULTICAST):
-            self.transport.joinGroup(self.recv_group_ip)
-            print(f"[DIS INFO] Joined multicast group {self.recv_group_ip}")
+            self.transport.joinGroup(self.recv_addr)
+            print(f"[DIS INFO] Joined multicast group {self.recv_addr}")
         elif (self.recv_mode == IPTransmissionType.BROADCAST):
             self.transport.setBroadcastAllowed(True)
 
         # EMITTER setup
-        print(f"[DIS INFO] DISEmitter started in {self.send_mode.name} mode.")
+        print(f"[DIS INFO] DISReceiver started in {self.send_mode.name} mode.")
+        if (self.send_mode == IPTransmissionType.MULTICAST):
+            self.transport.joinGroup(self.send_group_ip)
+            print(f"[DIS INFO] Joined multicast group {self.send_addr}")
+        elif (self.send_mode == IPTransmissionType.BROADCAST):
+            self.transport.setBroadcastAllowed(True)
 
     def datagramReceived(self, data, addr):
         ensureDeferred(self.handle_pdu(data, addr))
             
     async def handle_pdu(self, data, addr):
         try:
-            print(f"[DIS RECV] From {addr}: {data[:16]}...")
             pdu = self.pdu_factory.createPdu(data)
             if pdu:
                 pdu_json = pdu_to_dict(pdu)
-                print(f"Received PDU from {addr}:")
+                EID = pdu.entityID
+                print(f"[DIS RECV] {self.get_entity_name(pdu):<10} Entity with SN={EID.siteID:<2}, AN={EID.applicationID:<3}, EN={EID.entityID:<3} from {addr[0]}")
                 # pprint(pdu_json)
                 if self.should_relay_pdu(pdu):
-                    await self.poster.post_to_api(pdu_json, is_ack=False)
+                    await self.http_poster.post_to_api(pdu_json, is_ack=False)
         except Exception as e:
             print(f"Error decoding PDU: {e}")
  

@@ -17,6 +17,6 @@ class HttpPoster:
                 headers=headers,
                 json=json_payload
             )
-            print(f"[HTTP INFO:{"ACK" if is_ack else "PDU"}] HTTP POST response: {response.code}")
+            print(f"[HTTP INFO:{'ACK' if is_ack else 'PDU'}] HTTP POST response: {response.code}")
         except Exception as e:
-            print(f"[HTTP INFO:{"ACK" if is_ack else "PDU"}] HTTP POST failed: {e}")
+            print(f"[HTTP INFO:{'ACK' if is_ack else 'PDU'}] HTTP POST failed: {e}")
