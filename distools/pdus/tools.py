@@ -10,6 +10,8 @@ def pdu_to_dict(pdu_object):
             if isinstance(value, list):
                 # Si c'est une liste, applique la conversion à chaque élément
                 result[attribute] = [pdu_to_dict(item) if hasattr(item, "__dict__") else item for item in value]
+            elif attribute == "marking":
+                result[attribute] = getattr(pdu_object, attribute).charactersString()
             elif hasattr(value, "__dict__"):
                 # Si c'est un objet complexe, appelle récursivement
                 result[attribute] = pdu_to_dict(value)
