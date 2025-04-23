@@ -4,10 +4,13 @@ from twisted.internet.defer import ensureDeferred
 from twisted.internet.protocol import DatagramProtocol
 
 from opendis.DataOutputStream import DataOutputStream
+from opendis.RangeCoordinates import GPS
 from opendis.dis7 import EntityStatePdu, EntityType, Vector3Double, Vector3Float
 from opendis import PduFactory
 from .pdus.tools import pdu_to_dict
 from enum import IntEnum
+
+gps = GPS()
 
 ENTITY_TYPE_MAP = {
     (1, 2, 78, 22, 2, 0): "NH90",
@@ -61,6 +64,9 @@ class DISCommunicator(DatagramProtocol):
                 print(f"[DIS RECV] {self.get_entity_name(pdu):<10} Entity with SN={EID.siteID:<2}, AN={EID.applicationID:<3}, EN={EID.entityID:<3} from {addr[0]}")
                 # pprint(pdu_json)
                 if self.should_relay_pdu(pdu):
+                    ecef = (pdu.entityLocation.x, pdu.entityLocation.y, pdu.entityLocation.z)
+                    real_world_location = gps.ecef2lla(ecef)
+                    pdu_json["real_world_location"]  = real_world_location
                     await self.http_poster.post_to_api(pdu_json, is_ack=False)
         except Exception as e:
             print(f"Error decoding PDU: {e}")

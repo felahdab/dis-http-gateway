@@ -118,11 +118,11 @@ class DISCommunicator(DatagramProtocol):
             entityID=self.entity_number
         )
         pdu.entityType = random.choice([ExocetMM40, NH90, Normandie])()
-        pdu.entityLocation = Vector3Double(x=1000.0, y=2000.0, z=300.0)
+        pdu.entityLocation = Vector3Double(x=6378142.0, y=0.0, z=0.0)
         pdu.entityLinearVelocity = Vector3Float(x=0.0, y=0.0, z=0.0)
         pdu.entityAppearance = 0
         pdu.marking.characterSet = 1  # ASCII [UID 45]
-        pdu.marking.setString("MISSILE")
+        pdu.marking.setString("00043")
         self.entity_number += 1
         return pdu
 
