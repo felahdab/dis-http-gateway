@@ -1,5 +1,3 @@
-import json
-
 from twisted.web.client import Agent
 from twisted.internet import reactor, ssl
 from twisted.internet.defer import ensureDeferred
@@ -9,7 +7,6 @@ from urllib.parse import urlparse
 
 from config.config import load_config_from_env
 from distools.dis_communicator import DISCommunicator
-from distools.pdus.pdu_extension import extend_pdu_factory
 from httptools.http_poster import HttpPoster
 from httptools.http_poller import HttpPoller
 from treq.client import HTTPClient
@@ -27,7 +24,7 @@ class WhitelistContextFactory:
         return self.default_policy.creatorForNetloc(hostname, port)
 
 def main():
-    extend_pdu_factory()
+    # extend_pdu_factory()
     try:
         config = load_config_from_env()
     except ValueError as e:

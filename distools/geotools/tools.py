@@ -6,11 +6,23 @@ import math
 gps = GPS() # conversion helper
 
 def natural_velocity_to_ECEF(latitude, longitude, altitude, course, speed):
-    # latitude: in degrees
-    # longitude: in degrees
-    # altitude: in meters
-    # course: in degrees
-    # speed: in meters per second
+    """
+    Converts natural velocity (course and speed) into ECEF (Earth-Centered, Earth-Fixed) velocity components.
+
+    Given a geodetic position (latitude, longitude, altitude) and a movement vector (course in degrees, 
+    speed in meters per second), this function estimates the velocity in the ECEF frame by computing the 
+    position after one second and deriving the displacement vector.
+
+    Args:
+        latitude (float): Latitude in degrees.
+        longitude (float): Longitude in degrees.
+        altitude (float): Altitude in meters.
+        course (float): Movement direction in degrees (0° is North, 90° is East).
+        speed (float): Speed in meters per second.
+
+    Returns:
+        A tuple of three floats representing velocity in the ECEF frame (X, Y, Z), in meters per second.
+    """
 
     #print("Latitude et longitude initiale: ", latitude, longitude)
 

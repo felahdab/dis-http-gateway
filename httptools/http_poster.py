@@ -6,6 +6,13 @@ class HttpPoster:
         self.http_token = http_token
 
     async def post_to_api(self, json_payload, is_ack):
+        """
+        Posts JSON data to API.
+        It can be an engagement ack, or the forward of a DIS packet in JSON format
+        
+        Args:
+            is_ack: whether the data to post is an engagement ack or not
+        """
         headers = {
             "User-Agent" : [ f"Mozilla/5.0 (platform; rv:gecko-version) Gecko/gecko-trail Firefox/firefox-version"],
             "Content-Type": "application/json",
