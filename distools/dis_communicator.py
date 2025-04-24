@@ -73,7 +73,7 @@ class DISCommunicator(DatagramProtocol):
                     print(f"[DIS RECV] {self.get_entity_name(pdu):<10} Entity with SN={EID.siteID:<2}, AN={EID.applicationID:<3}, EN={EID.entityID:<3} from {addr[0]}")
                     ecef = (pdu.entityLocation.x, pdu.entityLocation.y, pdu.entityLocation.z)
                     real_world_location = gps.ecef2lla(ecef)
-                    pdu_json["real_world_location"]  = real_world_location
+                    pdu_json["real_world_location"] = real_world_location
                     await self.http_poster.post_to_api(pdu_json, is_ack=False)
         except Exception as e:
             print(f"Error decoding PDU: {e}")
