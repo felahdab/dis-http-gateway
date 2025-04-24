@@ -69,6 +69,7 @@ class HttpPoller:
         }
         for enga in data:
             if all(k in enga for k in ("latitude", "longitude", "course", "speed")):
+                print(f"[HTTP POLL] Valid engagement data received.")
                 entity_type = enga["entity_type"]
                 lat, lon, alt = enga["latitude"], enga["longitude"], 5
                 entity_id = (self.emitter.get_RemoteDISSite(), enga["AN"], enga["EN"])
@@ -87,4 +88,5 @@ class HttpPoller:
                     missile.setLoop(loop)
                     loop.start(5.0)
                     if "EN" in enga:
+                        print(f"[HTTP POLL] Acknowledging")
                         await self.http_poster.post_to_api({"engagement" : enga["EN"]}, is_ack=True)
