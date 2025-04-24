@@ -25,12 +25,25 @@ class Missile():
         self.is_out_of_range = False
 
     def setLoop(self, loop):
+        """
+        Sets a loop for a missile position update 
+
+        Args:
+            loop: task.LoopingCall() loop
+        """
         self.loop = loop
 
     def stopLoop(self):
+        """
+        Stops missile update loop when it has reached its maximum range
+        """
         self.loop.stop()
 
     def update(self):
+        """
+        Updates a missile position depending on the time elapsed and sends it over the network.
+        If the missile has reached its maximum range, stops its loop.
+        """
         nowtimestamp = datetime.datetime.now().timestamp()
         deltatime = nowtimestamp - self.current_timestamp
         newposition = self.advance(deltatime)
@@ -50,12 +63,25 @@ class Missile():
         return
 
     def advance(self, deltatime):
+        """
+        Computes the new position of a missile based on its speed, course, and elapsed time.
+        Altitude remains unchanged.
+
+        Args:
+            deltatime: The time elapsed in seconds.
+
+        Returns:
+            The new position as a list in the format [latitude, longitude, altitude].
+        """
         latitude_variation = deltatime * math.cos(math.radians(self.course)) * self.speed / ( 1854.0 * 60.0 )
         longitude_variation = deltatime * math.sin(math.radians(self.course)) * self.speed / ( 1854.0 * 60.0 * math.cos(math.radians(self.current_position[0])) ) 
         newposition = [ self.current_position[0] + latitude_variation, self.current_position[1] + longitude_variation, self.current_position[2]]
         return newposition
 
     def emit(self):
+        """
+        Emits the current state of the missile over the network, including position and velocity, in ECEF coordinates.
+        """
         [lat, lon, alt] = self.current_position
         (X, Y, Z) = gps.lla2ecef( [lat, lon, alt])
         (Xvel, Yvel, Zvel) = natural_velocity_to_ECEF(lat, lon, alt, self.course, self.speed)

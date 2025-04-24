@@ -19,6 +19,10 @@ class HttpPoller:
         self.http_client = http_client
 
     async def run(self):
+        """
+        Runs the HTTP poller loop.
+        Fetches data from the configured HTTP endpoint and process the engagements, with a configured interval between each. 
+        """
         while True:
             try:
                 print("=============================================================")
@@ -29,6 +33,13 @@ class HttpPoller:
             await task.deferLater(reactor, self.interval, lambda: None)
 
     async def fetch_data(self):
+        """
+        Polls engagement data from API.
+        If debug mode is activated, use dummy data.
+        
+        Returns:
+            a list of JSON dictionnaries of one or more engagements
+        """
         if self.is_debug_on:
             return [{
                 "id": 4,
@@ -62,6 +73,12 @@ class HttpPoller:
                 raise Exception(f"Got an error from the server: {response.code}")
 
     async def process_engagements(self, data):
+        """
+        Creates a missile from each polled engagement and POST an ack to the HTTP endpoint
+        
+        Args:
+            data: a list of JSON dictionnaries of one or more engagements
+        """
         self.created_missiles = { # Remove missiles that reached their max range
             entity_id: missile
             for entity_id, missile in self.created_missiles.items()

@@ -53,6 +53,13 @@ class DISCommunicator(DatagramProtocol):
         ensureDeferred(self.handle_pdu(data, addr))
             
     async def handle_pdu(self, data, addr):
+        """
+        Upon reception of a datagram, creates a PDU from it and POST it to the API if its an EntityStatePDU
+
+        Args:
+            data: Datagram received from the socket
+            addr: Source address of the datagram
+        """
         try:
             pdu = self.pdu_factory.createPdu(data)
             if pdu:
@@ -70,6 +77,12 @@ class DISCommunicator(DatagramProtocol):
         return ENTITY_TYPE_MAP.get((entity_type.entityKind, entity_type.domain, entity_type.country, entity_type.category, entity_type.subcategory, entity_type.specific), "UnknownEntity")
 
     def send_pdu(self, pdu):
+        """
+        Converts the given PDU from JSON to network stream and sends it over the network
+        
+        Args:
+            pdu: PDU to send
+        """
         memoryStream = BytesIO()
         outputStream = DataOutputStream(memoryStream)
         pdu.serialize(outputStream)
@@ -79,9 +92,27 @@ class DISCommunicator(DatagramProtocol):
         print(f"[DIS SEND] {self.get_entity_name(pdu)} Entity with SN={EID.siteID:<2}, AN={EID.applicationID:<3}, EN={EID.entityID:<3} sent to {self.send_addr}:{self.send_port}")
 
     def should_relay_pdu(self, pdu):
+        """
+        Verifies whether the given pdu is an EntityStatePDU or not.
+        
+        Args:
+            pdu: PDU to verify
+
+        Returns:
+            True if the given pdu is an EntityStatePDU, otherwise False
+        """
         return isinstance(pdu, EntityStatePdu)
     
     def emit_entity_state(self, entity_id, entity_type, position, velocity):
+        """
+        Creates and sends an EntityState PDU.
+        
+        Args:
+            entity_id: Entity ID of the PDU to send
+            entity_type: Entity Type of the PDU to send
+            position: Position of the PDU to send
+            velocity: Velocity of the PDU to send
+        """
         pdu = EntityStatePdu()
         # Les 4 lignes suivantes ne devraient pas être nécessaires, mais sans elles, on a un bug en struct.pack au moment de la serialisation.
         pdu.pduStatus = 0
@@ -107,6 +138,12 @@ class DISCommunicator(DatagramProtocol):
         self.send_pdu(pdu)
     
     def get_RemoteDISSite(self):
+        """
+        Gets the remote DIS site (Site ID) initially configured in the env file
+        
+        Returns:
+            remote_dis_site
+        """
         return self.remote_dis_site
 
 
