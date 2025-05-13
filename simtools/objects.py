@@ -10,19 +10,20 @@ from distools.geotools.tools import natural_velocity_to_ECEF
 gps = GPS()
 
 class Missile():
-    def __init__(self, entity_id, entity_type, emitter, initial_position, course, speed, range):
+    def __init__(self, entity_id, entity_type, emitter, initial_position, course, speed, range, initial_timestamp, endpoint_time, max_flight_time):
         self.entity_id = entity_id
         self.entity_type = entity_type
         self.emitter = emitter
-        self.initial_timestamp = datetime.datetime.now().timestamp()
+        self.is_out_of_range = True if ((endpoint_time - initial_timestamp) > max_flight_time) else False
+        self.initial_timestamp = initial_timestamp
         self.initial_position = initial_position # [latitude, longitude, altitude]
         self.course = course
         self.speed = speed
-        self.current_position = self.initial_position # [latitude, longitude, altitude]
-        self.current_timestamp = self.initial_timestamp
+        self.current_position = initial_position # Set current position as its needed by advance()
+        self.current_position = self.advance(endpoint_time - initial_timestamp)
+        self.current_timestamp = datetime.datetime.now().timestamp()
         self.range = range
-        self.loop = None
-        self.is_out_of_range = False
+        self.loop = None 
 
     def setLoop(self, loop):
         """
@@ -91,6 +92,3 @@ class Missile():
         velocity = (Xvel, Yvel, Zvel)  # Vitesse de l'entité
 
         self.emitter.emit_entity_state(self.entity_id, self.entity_type, position, velocity)
-        
-    def get_missile_is_out_of_range(self):
-        return self.is_out_of_range

@@ -43,7 +43,6 @@ class HttpPoller:
         if self.is_debug_on:
             return [{
                 "id": 4,
-                "timestamp": "2025-04-17T00:00:00.000000Z",
                 "latitude": 43.0,
                 "longitude": 5.0,
                 "target_latitude": 44,
@@ -57,7 +56,10 @@ class HttpPoller:
                 },
                 "speed": 318,
                 "course": 230,
-                "maxrange": 10
+                "maxrange": 10,
+                "current_time": 1747084972,
+                "timestamp": 1747084949,
+                "weapon_flight_time": 125.78616352201257
             }]
         else:
             response = await self.http_client.get(self.endpoint, headers={
@@ -98,12 +100,18 @@ class HttpPoller:
                         [lat, lon, alt],
                         enga["course"],
                         enga["speed"],
-                        enga["maxrange"]
+                        enga["maxrange"],
+                        enga["timestamp"],
+                        enga["current_time"],
+                        enga["weapon_flight_time"]
                     )
-                    self.created_missiles[entity_id] = missile
-                    loop = task.LoopingCall(missile.update)
-                    missile.setLoop(loop)
-                    loop.start(5.0)
+                    if missile.is_out_of_range is True:
+                        print(f"[HTTP POLL] Received engagement (EN {0}) is out of range already. Acknowleding it without sending a DIS EntityStatePDU.".format(enga["EN"]))
+                    else:
+                        self.created_missiles[entity_id] = missile
+                        loop = task.LoopingCall(missile.update)
+                        missile.setLoop(loop)
+                        loop.start(5.0)
                     if "EN" in enga:
-                        print(f"[HTTP POLL] Acknowledging")
+                        print(f"[HTTP POLL] Acknowledging EN {0}".format(enga["EN"]))
                         await self.http_poster.post_to_api({"engagement" : enga["EN"]}, is_ack=True)
