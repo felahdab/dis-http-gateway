@@ -5,6 +5,7 @@ from twisted.web import http
 
 from simtools.objects import Missile
 from opendis.dis7 import EntityID
+from twisted.internet.defer import ensureDeferred
 
 class HttpPoller:
     def __init__(self, endpoint, token, interval, emitter, http_poster, ack_endpoint, is_debug_on, http_client):
@@ -43,13 +44,13 @@ class HttpPoller:
         if self.is_debug_on:
             return [{
                 "id": 4,
-                "timestamp": "2025-04-17T00:00:00.000000Z",
                 "latitude": 43.0,
                 "longitude": 5.0,
                 "target_latitude": 44,
                 "target_longitude": 5,
                 "AN": 1,
-                "EN": 22,
+                # "EN": [22],
+                "EN": [22, 23, 24],
                 "entity_type": {
                     "kind": 2, "domain": 6, "country": 71,
                     "category": 1, "subcategory": 1,
@@ -57,7 +58,10 @@ class HttpPoller:
                 },
                 "speed": 318,
                 "course": 230,
-                "maxrange": 10
+                "maxrange": 10,
+                "current_time": 1747084972, # Endpoint timestamp (UTC)
+                "timestamp": 1747084949,    # Engagement timestamp
+                "weapon_flight_time": 125.78616352201257 # Maximum flight time
             }]
         else:
             response = await self.http_client.get(self.endpoint, headers={
@@ -72,9 +76,43 @@ class HttpPoller:
                 # raise Exception(f"Got an error from the server: {message}")
                 raise Exception(f"Got an error from the server: {response.code}")
 
+    async def create_missiles(self, enga):
+        """
+        Creates one or several missiles with a 1 second interval based on engagement data
+        
+        Args:
+            enga: a JSON dictionnary on a engagement
+        """
+        entity_type = enga["entity_type"]
+        lat, lon, alt = enga["latitude"], enga["longitude"], 5
+        
+        for i, entity_number in enumerate(enga["EN"]):
+            entity_id = (self.emitter.get_RemoteDISSite(), enga["AN"], entity_number)
+            if entity_id not in self.created_missiles:
+                missile = Missile(
+                    EntityID(self.emitter.get_RemoteDISSite(), enga["AN"], entity_number),
+                    entity_type,
+                    self.emitter,
+                    [lat, lon, alt],
+                    enga["course"],
+                    enga["speed"],
+                    enga["maxrange"],
+                    enga["timestamp"],
+                    enga["current_time"],
+                    enga["weapon_flight_time"]
+                )
+                if missile.is_out_of_range is True:
+                    print("[HTTP POLL] Received engagement missile (ID={0}, EN={1}) is out of range already. Acknowleding it without sending a DIS EntityStatePDU.".format(enga["id"], entity_number))
+                else:
+                    self.created_missiles[entity_id] = missile
+                    loop = task.LoopingCall(missile.update)
+                    missile.setLoop(loop)
+                    loop.start(5.0)
+                await task.deferLater(reactor, 1.0, lambda: None)
+
     async def process_engagements(self, data):
         """
-        Creates a missile from each polled engagement and POST an ack to the HTTP endpoint
+        Processes engagements by creating missiles, acknowleding the engagement and handling missile lifecycle
         
         Args:
             data: a list of JSON dictionnaries of one or more engagements
@@ -87,23 +125,6 @@ class HttpPoller:
         for enga in data:
             if all(k in enga for k in ("latitude", "longitude", "course", "speed")):
                 print(f"[HTTP POLL] Valid engagement data received.")
-                entity_type = enga["entity_type"]
-                lat, lon, alt = enga["latitude"], enga["longitude"], 5
-                entity_id = (self.emitter.get_RemoteDISSite(), enga["AN"], enga["EN"])
-                if entity_id not in self.created_missiles:
-                    missile = Missile(
-                        EntityID(self.emitter.get_RemoteDISSite(), enga["AN"], enga["EN"]),
-                        entity_type,
-                        self.emitter,
-                        [lat, lon, alt],
-                        enga["course"],
-                        enga["speed"],
-                        enga["maxrange"]
-                    )
-                    self.created_missiles[entity_id] = missile
-                    loop = task.LoopingCall(missile.update)
-                    missile.setLoop(loop)
-                    loop.start(5.0)
-                    if "EN" in enga:
-                        print(f"[HTTP POLL] Acknowledging")
-                        await self.http_poster.post_to_api({"engagement" : enga["EN"]}, is_ack=True)
+                ensureDeferred(self.create_missiles(enga))
+                print("[HTTP POLL] Acknowledging engagement ID={0}".format(enga["id"]))
+                await self.http_poster.post_to_api({"engagement" : enga["id"]}, is_ack=True)

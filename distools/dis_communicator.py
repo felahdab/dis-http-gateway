@@ -9,6 +9,8 @@ from opendis.dis7 import EntityStatePdu, EntityType, Vector3Double, Vector3Float
 from opendis import PduFactory
 from .pdus.tools import pdu_to_dict
 from enum import IntEnum
+from distools.geotools.tools import ECEF_to_natural_velocity
+# from pprint import pprint
 
 gps = GPS()
 
@@ -67,13 +69,16 @@ class DISCommunicator(DatagramProtocol):
             pdu = self.pdu_factory.createPdu(data)
             if pdu:
                 pdu_json = pdu_to_dict(pdu)            
-                # pprint(pdu_json)
                 if self.should_relay_pdu(pdu):
                     EID = pdu.entityID
                     print(f"[DIS RECV] {self.get_entity_name(pdu):<10} Entity with SN={EID.siteID:<2}, AN={EID.applicationID:<3}, EN={EID.entityID:<3} from {addr[0]}")
                     ecef = (pdu.entityLocation.x, pdu.entityLocation.y, pdu.entityLocation.z)
                     real_world_location = gps.ecef2lla(ecef)
+                    course, velocity = ECEF_to_natural_velocity(pdu.entityLocation, pdu.entityLinearVelocity)
                     pdu_json["real_world_location"] = real_world_location
+                    pdu_json["real_world_course"] = course
+                    pdu_json["real_world_velocity"] = velocity
+                    # pprint(pdu_json)
                     await self.http_poster.post_to_api(pdu_json, is_ack=False)
         except Exception as e:
             print(f"Error decoding PDU: {e}")
