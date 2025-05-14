@@ -1,9 +1,38 @@
 # -*- test-case-name: geotools.test.test_tools -*-
-from opendis.RangeCoordinates import GPS, deg2rad
-
+from opendis.RangeCoordinates import GPS
 import math
 
 gps = GPS() # conversion helper
+    
+def ECEF_to_natural_velocity(position, velocity):
+    ecef_pos = (position.x, position.y, position.z)
+    ecef_vel = (velocity.x, velocity.y, velocity.z)
+    lat_deg, lon_deg, alt_deg = gps.ecef2lla(ecef_pos)
+    # print(f"\npos={ecef_pos}, velocity={ecef_vel}")
+    # print(f"lat_deg={lat_deg}, lon_deg={lon_deg}, alt_deg={alt_deg}")
+    
+    x_new = ecef_pos[0] + ecef_vel[0]
+    y_new = ecef_pos[1] + ecef_vel[1]
+    z_new = ecef_pos[2] + ecef_vel[2]
+
+    new_lat_deg, new_lon_deg, new_alt_deg = gps.ecef2lla((x_new, y_new, z_new))
+    # print(f"New position after 1 second: lat={new_lat_deg}, lon={new_lon_deg}, alt={new_alt_deg}")
+
+    delta_lat = new_lat_deg - lat_deg
+    delta_lon = new_lon_deg - lon_deg
+    # print(f"delta_lat={delta_lat}")
+    # print(f"delta_lon={delta_lon}")
+
+    displacement_course = math.degrees(math.atan2(delta_lon, delta_lat)) % 360
+    displacement_speed = math.sqrt(delta_lat**2 + delta_lon**2) * (1854.0 * 60.0)
+
+    if displacement_speed < 1e-6:
+        displacement_speed = 0.0
+
+    # print(f"Displacement speed: {displacement_speed}")
+    # print(f"Displacement course: {displacement_course}")
+
+    return displacement_course, displacement_speed
 
 def natural_velocity_to_ECEF(latitude, longitude, altitude, course, speed):
     """
