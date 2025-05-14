@@ -57,9 +57,9 @@ class HttpPoller:
                 "speed": 318,
                 "course": 230,
                 "maxrange": 10,
-                "current_time": 1747084972,
-                "timestamp": 1747084949,
-                "weapon_flight_time": 125.78616352201257
+                "current_time": 1747084972, # Endpoint timestamp (UTC)
+                "timestamp": 1747084949,    # Engagement timestamp
+                "weapon_flight_time": 125.78616352201257 # Maximum flight time
             }]
         else:
             response = await self.http_client.get(self.endpoint, headers={
@@ -106,12 +106,12 @@ class HttpPoller:
                         enga["weapon_flight_time"]
                     )
                     if missile.is_out_of_range is True:
-                        print(f"[HTTP POLL] Received engagement (EN {0}) is out of range already. Acknowleding it without sending a DIS EntityStatePDU.".format(enga["EN"]))
+                        print("[HTTP POLL] Received engagement (EN {0}) is out of range already. Acknowleding it without sending a DIS EntityStatePDU.".format(enga["EN"]))
                     else:
                         self.created_missiles[entity_id] = missile
                         loop = task.LoopingCall(missile.update)
                         missile.setLoop(loop)
                         loop.start(5.0)
                     if "EN" in enga:
-                        print(f"[HTTP POLL] Acknowledging EN {0}".format(enga["EN"]))
+                        print("[HTTP POLL] Acknowledging EN {0}".format(enga["EN"]))
                         await self.http_poster.post_to_api({"engagement" : enga["EN"]}, is_ack=True)

@@ -10,7 +10,10 @@ class missileTestCase(unittest.TestCase):
         course = 230
         speed = 318
         maxrange = 10
-        self.missile = Missile(entity_id, entity_type, None, initial_position, course, speed, maxrange)
+        current_time = 1747084972
+        timestamp = 1747084949
+        weapon_flight_time = 125.78616352201257
+        self.missile = Missile(entity_id, entity_type, None, initial_position, course, speed, maxrange, timestamp, current_time, weapon_flight_time)
     
     def test_advance_north(self):
         self.missile.course = 0 

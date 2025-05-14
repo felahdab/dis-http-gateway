@@ -120,7 +120,7 @@ En voici les étapes:
 
 ## Tests
 
-Des tests unitaires sont présents afin de tester les méthodes [missile.advance()](simtools\objects.py) et [natural_velocity_to_ECEF()](distools\geotools\test\test_tools.py).  
+Des tests unitaires sont présents afin de tester les méthodes [missile.advance()](simtools\objects.py) et [ECEF_to_natural_velocity()/natural_velocity_to_ECEF()](distools\geotools\test\test_tools.py).  
 Ils utilisent le module [unittest de Twisted](https://docs.twisted.org/en/stable/development/test-standard.html) et il est possible de les exécuter depuis la racine du projet à l'aide de:
 ```sh
 python -m twisted.trial distools.geotools simtools # Afin d'exécuter les deux groupes de tests
