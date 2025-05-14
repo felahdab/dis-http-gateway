@@ -5,6 +5,16 @@ import math
 gps = GPS() # conversion helper
     
 def ECEF_to_natural_velocity(position, velocity):
+    """
+    Converts ECEF position and velocity to course and speed.
+
+    Args:
+        position: Object with .x, .y, .z (ECEF coordinates in meters).
+        velocity: Object with .x, .y, .z (velocity in ECEF, m/s).
+
+    Returns:
+        (course, speed): Direction in degrees (0–360) and speed in m/s.
+    """
     ecef_pos = (position.x, position.y, position.z)
     ecef_vel = (velocity.x, velocity.y, velocity.z)
     lat_deg, lon_deg, alt_deg = gps.ecef2lla(ecef_pos)
