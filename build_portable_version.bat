@@ -56,7 +56,7 @@ if exist %PORTABLE% (
 mkdir %PORTABLE%
 
 :: Exclusion list
-set EXCLUDES=.git .gitignore build_portable_version.bat Winpython64-3.10.11.1dot.exe %PORTABLE% dis-http-gateway-portable.zip _trial_temp .vscode build dist
+set EXCLUDES=.env .git .gitignore build_portable_version.bat Winpython64-3.10.11.1dot.exe %PORTABLE% dis-http-gateway-portable.zip _trial_temp .vscode build dist
 
 :: Copy folders (excluding known ones)
 for /d %%D in (*) do (
