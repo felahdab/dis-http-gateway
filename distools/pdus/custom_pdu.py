@@ -1,4 +1,7 @@
 from opendis.dis7 import Pdu
+from opendis.DataOutputStream import DataOutputStream
+from io import BytesIO
+
 
 class CustomPdu(Pdu):
     def __init__(self):
@@ -10,6 +13,7 @@ class CustomPdu(Pdu):
         """
         Add a message to the PDU.
         """
+        print(f"[CustomPDU] adding message: {message}")
         self.messages.append(message)
 
     # def decode(self, data_stream):
@@ -19,46 +23,45 @@ class CustomPdu(Pdu):
     #     super().decode(data_stream)  # Decode common PDU fields
 
 
-    def encode(self):
+    def serialize(self, outputStream):
         """
         Encode this PDU into binary format.
         """
-        data_stream = super().encode()  # Encode common PDU fields
+        memoryStream = BytesIO()
+        dummyoutputStream = DataOutputStream(memoryStream)
+
+        super(CustomPdu, self).serialize(dummyoutputStream)
         for i, message in enumerate(self.messages):
             record_id = 1000 + i
             encoded = message.encode("utf-16-be")
             total_bits = (len(encoded) + 8) * 8  # 8 = 4 pour ID + 4 pour length
-            data_stream.write_unsigned_int(record_id)  # Example: 4 bytes
-            data_stream.write_unsigned_int(total_bits)  # Example: 4 bytes
-            data_stream.stream.write(encoded)  # Write the encoded message
+            dummyoutputStream.write_unsigned_int(record_id)  # Example: 4 bytes
+            dummyoutputStream.write_unsigned_int(total_bits)  # Example: 4 bytes
+            dummyoutputStream.stream.write(encoded)  # Write the encoded message
 
 
         # Ajout du padding à 8 octets
-        if self.stream.getBuffer().nbytes % 8 != 0:
-            padding = 8 - (self.stream.getBuffer().nbytes % 8)
-            data_stream.stream.write(b"\x00" * padding) 
+        if dummyoutputStream.stream.getbuffer().nbytes % 8 != 0:
+            padding = 8 - (dummyoutputStream.stream.getbuffer().nbytes % 8)
+            dummyoutputStream.stream.write(b"\x00" * padding) 
 
         # 1ère passe: on connait désormais la longueur finale du PDU.
 
-        self.pduLength = self.stream.getBuffer().nbytes
+        self.length = dummyoutputStream.stream.getbuffer().nbytes
 
         # 2ème passe: on réencode pour avoir le PDU avec la bonne longueur.
-        data_stream = super().encode()  # Encode common PDU fields
+        super(CustomPdu, self).serialize(outputStream)
         for i, message in enumerate(self.messages):
             record_id = 1000 + i
             encoded = message.encode("utf-16-be")
             total_bits = (len(encoded) + 8) * 8  # 8 = 4 pour ID + 4 pour length
-            data_stream.write_unsigned_int(record_id)  # Example: 4 bytes
-            data_stream.write_unsigned_int(total_bits)  # Example: 4 bytes
-            data_stream.stream.write(encoded)  # Write the encoded message
+            outputStream.write_unsigned_int(record_id)  # Example: 4 bytes
+            outputStream.write_unsigned_int(total_bits)  # Example: 4 bytes
+            outputStream.stream.write(encoded)  # Write the encoded message
 
 
         # Ajout du padding à 8 octets
-        if self.stream.getBuffer().nbytes % 8 != 0:
-            padding = 8 - (self.stream.getBuffer().nbytes % 8)
-            data_stream.stream.write(b"\x00" * padding) 
-
-        return data_stream
+        outputStream.stream.write(b"\x00" * padding) 
 
     # def to_dict(self):
     #     """
