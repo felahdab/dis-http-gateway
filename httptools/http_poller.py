@@ -48,7 +48,7 @@ class HttpPoller:
                 "longitude": 5.0,
                 "STN" : "00020",
                 "target_latitude": 44,
-                "target_longitude": 5,
+                "target_longitude": "5.143",
                 "AN": 1,
                 # "EN": [22],
                 "EN": [22, 23, 24],
