@@ -1,4 +1,5 @@
 from io import BytesIO
+import time
 
 from twisted.internet.defer import ensureDeferred
 from twisted.internet.protocol import DatagramProtocol
@@ -10,6 +11,7 @@ from opendis import PduFactory
 from .pdus.tools import pdu_to_dict
 from enum import IntEnum
 from distools.geotools.tools import ECEF_to_natural_velocity
+from distools.pdus.custom_pdu import CustomPdu
 # from pprint import pprint
 
 gps = GPS()
@@ -145,6 +147,27 @@ class DISCommunicator(DatagramProtocol):
         pdu.entityLinearVelocity = Vector3Float(velocity[0], velocity[1], velocity[2])
         pdu.marking.characterSet = 1  # ASCII [UID 45]
         pdu.marking.setString("MISSILE")
+
+        self.send_pdu(pdu)
+
+    def emit_custom_pdu(self, STN, target_latitude, target_longitude)
+        """
+        Creates and sends an Custom PDU containing STN, target latitude and target longitude.
+        
+        Args:
+            entity_id: STN of the attacking unit (string)
+            target_latitude: Latitude of the target (string)
+            target_longitude: Longitude of the target (string)
+        """
+        pdu = CustomPdu()
+        pdu.exerciseID = 1
+        pdu.protocolFamily = 150
+        pdu.timestamp =int(time.time())
+        pdu.pduStatus = 22
+
+        pdu.add_message(str(STN))  # STN of the attacking unit"")
+        pdu.add_message(str(target_latitude))  # STN of the attacking unit"")
+        pdu.add_message(str(target_longitude))  # STN of the attacking unit"")
 
         self.send_pdu(pdu)
     

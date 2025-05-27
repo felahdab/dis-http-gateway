@@ -10,7 +10,7 @@ from distools.geotools.tools import natural_velocity_to_ECEF
 gps = GPS()
 
 class Missile():
-    def __init__(self, entity_id, entity_type, emitter, initial_position, course, speed, range, initial_timestamp, endpoint_time, max_flight_time):
+    def __init__(self, entity_id, entity_type, emitter, initial_position, course, speed, range, initial_timestamp, endpoint_time, max_flight_time, STN, target_latitude, target_longitude):
         self.entity_id = entity_id
         self.entity_type = entity_type
         self.emitter = emitter
@@ -23,6 +23,9 @@ class Missile():
         self.current_position = self.advance(endpoint_time - initial_timestamp)
         self.current_timestamp = datetime.datetime.now().timestamp()
         self.range = range
+        self.STN = STN
+        self.target_latitude = target_latitude
+        self.target_longitude = target_longitude
         self.loop = None 
 
     def setLoop(self, loop):
@@ -92,3 +95,5 @@ class Missile():
         velocity = (Xvel, Yvel, Zvel)  # Vitesse de l'entité
 
         self.emitter.emit_entity_state(self.entity_id, self.entity_type, position, velocity)
+
+        self.emitter.emit_custom_pdu(self.STN, self.target_latitude, self.target_longitude)

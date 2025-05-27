@@ -46,6 +46,7 @@ class HttpPoller:
                 "id": 4,
                 "latitude": 43.0,
                 "longitude": 5.0,
+                "STN" : "00020",
                 "target_latitude": 44,
                 "target_longitude": 5,
                 "AN": 1,
@@ -99,7 +100,10 @@ class HttpPoller:
                     enga["maxrange"],
                     enga["timestamp"],
                     enga["current_time"],
-                    enga["weapon_flight_time"]
+                    enga["weapon_flight_time"],
+                    enga["STN"],
+                    enga['target_latitude'],
+                    enga['target_longitude']
                 )
                 if missile.is_out_of_range is True:
                     print("[HTTP POLL] Received engagement missile (ID={0}, EN={1}) is out of range already. Acknowleding it without sending a DIS EntityStatePDU.".format(enga["id"], entity_number))
