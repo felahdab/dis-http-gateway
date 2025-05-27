@@ -101,8 +101,11 @@ class DISCommunicator(DatagramProtocol):
         pdu.serialize(outputStream)
         data = memoryStream.getvalue()
         self.transport.write(data, (self.send_addr, self.send_port))
-        EID = pdu.entityID
-        print(f"[DIS SEND] {self.get_entity_name(pdu)} Entity with SN={EID.siteID:<2}, AN={EID.applicationID:<3}, EN={EID.entityID:<3} sent to {self.send_addr}:{self.send_port}")
+        if hasattr(pdu, "entityID"):
+            EID = pdu.entityID
+            print(f"[DIS SEND] {self.get_entity_name(pdu)} Entity with SN={EID.siteID:<2}, AN={EID.applicationID:<3}, EN={EID.entityID:<3} sent to {self.send_addr}:{self.send_port}")
+        else:
+            print(f"[DIS SEND] Custom PDU: {pdu.pduType}")
 
     def should_relay_pdu(self, pdu):
         """
@@ -150,7 +153,7 @@ class DISCommunicator(DatagramProtocol):
 
         self.send_pdu(pdu)
 
-    def emit_custom_pdu(self, STN, target_latitude, target_longitude)
+    def emit_custom_pdu(self, STN, target_latitude, target_longitude):
         """
         Creates and sends an Custom PDU containing STN, target latitude and target longitude.
         
